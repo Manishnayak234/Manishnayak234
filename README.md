@@ -3,7 +3,7 @@
 **ADAS Perception Engineer** · Radar & camera perception · Edge AI deployment
 
 I build perception features for advanced rider and driver assistance systems, working from sensor data to warning logic that holds up on the road.
-At TVS Motor Company I work on radar-based Forward Collision Warning for two-wheelers, and I deploy vision models on edge hardware.
+I work on radar-based Forward Collision Warning for two-wheelers, and I deploy vision models on edge hardware.
 M.Tech in Mechatronics from IIT Patna, with a patent on adaptive radar profiling.
 
 ### Focus Areas
