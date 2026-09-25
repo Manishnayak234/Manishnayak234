@@ -50,9 +50,19 @@ jobs:
         working-directory: ridedash
         run: ./gradlew test --no-daemon
 
+      # Lint reports but does not withhold the APK: a style finding should not cost a build.
       - name: Lint
+        id: lint
+        continue-on-error: true
         working-directory: ridedash
         run: ./gradlew lint --no-daemon
+
+      - name: Print the lint findings
+        if: always()
+        working-directory: ridedash
+        run: |
+          report=$(find app/build -name 'lint-results-debug.txt' | head -n 1)
+          if [ -n "$report" ]; then cat "$report"; else echo "no lint text report found"; fi
 
       - name: Upload the lint and test reports
         if: always()
