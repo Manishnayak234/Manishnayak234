@@ -50,10 +50,9 @@ jobs:
         working-directory: ridedash
         run: ./gradlew test --no-daemon
 
-      # Lint reports but does not withhold the APK: a style finding should not cost a build.
+      # Lint runs after the APK is already uploaded, so a finding is visible without costing the
+      # build its artifact.
       - name: Lint
-        id: lint
-        continue-on-error: true
         working-directory: ridedash
         run: ./gradlew lint --no-daemon
 

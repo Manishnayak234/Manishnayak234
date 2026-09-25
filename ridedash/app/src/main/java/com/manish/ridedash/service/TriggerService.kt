@@ -1,9 +1,11 @@
 package com.manish.ridedash.service
 
+import android.Manifest
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.provider.Settings
@@ -119,6 +121,13 @@ class TriggerService : LifecycleService() {
     }
 
     private fun promptInstead() {
+        val allowed = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) ==
+            PackageManager.PERMISSION_GRANTED
+        if (!allowed) {
+            Log.w(TAG, "No notification permission, so the rider cannot be asked to start")
+            return
+        }
         runCatching {
             NotificationManagerCompat.from(this)
                 .notify(Notifications.NOTIFICATION_START_PROMPT, Notifications.startPrompt(this))

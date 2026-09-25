@@ -41,6 +41,8 @@ android {
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
+    // Play Services pulls in fragment 1.0.0, which the ActivityResult APIs reject.
+    implementation(libs.androidx.fragment)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.service)

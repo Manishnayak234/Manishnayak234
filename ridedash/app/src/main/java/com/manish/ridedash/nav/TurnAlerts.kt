@@ -1,10 +1,14 @@
 package com.manish.ridedash.nav
 
+import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
+import android.content.pm.PackageManager
+import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
 import com.manish.ridedash.R
 import com.manish.ridedash.data.NavState
 
@@ -37,6 +41,13 @@ class TurnAlerts(private val context: Context) {
 
     /** Posts or updates the turn alert. Safe to call on every Maps update. */
     fun post(nav: NavState) {
+        // Nothing to do if the rider never granted notifications: no alert can reach the watch, and
+        // posting anyway would just throw.
+        val allowed = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
+            PackageManager.PERMISSION_GRANTED
+        if (!allowed) return
+
         val newManeuver = nav.maneuverKey != currentKey
         if (newManeuver) {
             currentKey = nav.maneuverKey

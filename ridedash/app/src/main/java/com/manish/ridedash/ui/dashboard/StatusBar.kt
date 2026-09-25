@@ -9,17 +9,22 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.produceState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.manish.ridedash.R
 import com.manish.ridedash.data.RideState
 import com.manish.ridedash.ui.theme.GpsStale
 import com.manish.ridedash.ui.theme.Warn
@@ -67,7 +72,7 @@ fun StatusBar(state: RideState, modifier: Modifier = Modifier) {
         ) {
             if (state.hot) {
                 Text(
-                    text = "${Formatters.batteryTemp(state.batteryTempC)} ▲",
+                    text = "${stringResource(R.string.warn_hot)} ${Formatters.batteryTemp(state.batteryTempC)}",
                     style = labelStyle,
                     color = Warn,
                 )
@@ -120,10 +125,11 @@ private fun batteryFill(state: RideState, normal: Color, charging: Color): Color
 @Composable
 private fun clockText(): String {
     val context = LocalContext.current
-    val use24h = DateFormat.is24HourFormat(context)
-    val text by produceState(initialValue = currentClock(use24h), use24h) {
+    val use24h = remember(context) { DateFormat.is24HourFormat(context) }
+    var text by remember(use24h) { mutableStateOf(currentClock(use24h)) }
+    LaunchedEffect(use24h) {
         while (true) {
-            value = currentClock(use24h)
+            text = currentClock(use24h)
             delay(10_000L)
         }
     }
