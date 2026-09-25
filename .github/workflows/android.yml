@@ -19,9 +19,19 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+          cache: gradle
 
-      - name: Set up the Android SDK
-        uses: android-actions/setup-android@v3
+      # The runner image already carries an Android SDK; only the pieces this app
+      # compiles against need topping up.
+      - name: Make sure the SDK has API 35
+        run: |
+          set -euo pipefail
+          echo "ANDROID_HOME=${ANDROID_HOME}"
+          ls "${ANDROID_HOME}/platforms" || true
+          ls "${ANDROID_HOME}/build-tools" || true
+          SDKMANAGER=$(find "${ANDROID_HOME}/cmdline-tools" -name sdkmanager -type f | head -n 1)
+          yes | "${SDKMANAGER}" --licenses > /dev/null 2>&1 || true
+          "${SDKMANAGER}" "platforms;android-35" "build-tools;35.0.0"
 
       - name: Build the debug APK
         working-directory: ridedash
@@ -49,6 +59,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ridedash-reports
-          path: |
-            ridedash/app/build/reports/**
+          path: ridedash/app/build/reports/**
           if-no-files-found: warn
