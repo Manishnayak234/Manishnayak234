@@ -20,8 +20,18 @@ there.
 
 ## Build and install
 
-Requirements: Android Studio (Ladybug or newer), JDK 17, a phone with USB debugging on. There is no
-emulator in the plan — the sensors and the sunlight are the point.
+Requirements: Android Studio (Ladybug or newer), JDK 17 or 21, SDK platform 35 and build-tools 35,
+a phone with USB debugging on. There is no emulator in the plan — the sensors and the sunlight are the
+point.
+
+**Gradle 8.11.1 will not run on a JDK newer than 23**, and a current Android Studio bundles JBR 25, so
+a build started from Studio fails with a bare `25.0.3` error until you point it at an older JDK:
+Settings → Build, Execution, Deployment → Build Tools → Gradle → **Gradle JDK → 21**. From the command
+line, set `JAVA_HOME` to a JDK 21:
+
+```bash
+export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+```
 
 ```bash
 cd ridedash
@@ -57,6 +67,8 @@ app/src/main/java/com/manish/ridedash/
   MainActivity.kt              Compose host, dashboard mode, pinning, NFC and charger entry
   ui/theme/                    colour tokens (day/night), Barlow type scale
   ui/dashboard/                gauge, status bar, bottom bar, the two panels, drawn icons
+    BrightnessSlider.kt        the brightness strip, on every dashboard layout
+    CompactDashboard.kt        the half-width layout used in split screen
   ui/onboarding/               the setup checklist
   ui/stats/                    ride stats (v1: this ride and the last one)
   service/DashboardService.kt  foreground service: location, sensors, overlay, watch alerts
@@ -81,30 +93,53 @@ overlay only read it.
 | 1 | Project skeleton, theme, fonts, static Navigating screen | done |
 | 2 | Speed gauge on live GPS, status bar with fix and battery | done |
 | 3 | Cruising screen: heading, lean with calibration, altitude, max/avg, auto night | done |
-| 4 | Maps notification listener, parser, live Navigating screen | done — **parser still needs real samples** |
-| 5 | Map view: launch Maps, draggable speed overlay, tap to return | done |
+| 4 | Maps notification listener, parser, live Navigating screen | done — parser built from real samples off the phone; **no turn sample captured yet** |
+| 5 | Map view: launch Maps, draggable speed overlay, tap to return | done, seen working on the phone |
+| 5b | Split screen: compact dashboard beside Google Maps | done |
 | 6 | Watch turn alerts on their own channel | done |
 | 7 | Dashboard mode: pinning, Hold to exit, NFC and charger triggers, onboarding | done |
 | 8 | Polish: heat warning, ride stats, persisted trip data | heat warning and stats done; full trip history is v2 |
 
 ## What has been checked, and what has not
 
-The whole pure-logic layer was compiled with Kotlin 2.0.21 and its unit tests run: 40 tests over the
-Maps parser, maneuver progress, watch-alert glyphs, trip maths, speed smoothing, heading wrap-around
-and all the number formatting. They pass.
+The **Android build now runs clean**: `assembleDebug`, `test` and `lint` all pass on JDK 21 against
+SDK 35, so everything here has been through AGP 8.7.3, the Compose compiler and lint. The debug APK
+builds at about 27 MB. The unit tests are 43 over the Maps parser, maneuver progress, watch-alert
+glyphs, trip maths, speed smoothing, heading wrap-around and all the number formatting, with no
+failures.
 
-The **Android build has not been run**: the container this was written in cannot reach the Android SDK
-or Google's Maven repository, so nothing here has been through AGP, Compose's compiler or lint, and it
-has never been on a phone. Treat the first `./gradlew installDebug` in Android Studio as the real first
-compile — expect to fix the odd import or API detail, and do it milestone by milestone as the brief
-says.
+Lint is at **zero errors**. Getting there fixed three real problems the first compile surfaced:
+
+- `TurnAlerts` and `TriggerService` posted notifications without checking `POST_NOTIFICATIONS`, so on
+  Android 13+ a missing permission would have silently swallowed every watch alert. Both now check and
+  log instead.
+- `androidx.fragment` resolved transitively to 1.1.0, which predates the Activity Result APIs that
+  `MainActivity` uses. Pinned forward to 1.8.5.
+- The clock's `produceState` is now a plain `remember` + `LaunchedEffect`, which says the same thing
+  without tripping Compose's lint check.
+
+What remains is 38 lint warnings, all benign: mostly newer library versions being available, three
+unused strings, and the fixed landscape orientation that this app exists to have.
+
+It has **never been on a phone**. Nothing below the pure-logic layer — GPS, the sensors, the Maps
+notification, the overlay, pinning — has been exercised against real hardware.
 
 ## Things to check on the real bike
 
-- **The Maps parser is built from expected shapes, not from your phone's Maps.** Start a route and
-  watch `adb logcat -s RideDash/MapsRaw`: every field of every Maps notification is logged verbatim.
-  Compare against `MapsParserTest` and adjust `MapsParser` where the wording differs. The switch that
-  keeps that logging on is `ALWAYS_LOG_RAW` in `MapsNotificationListener`.
+- **The Maps parser has seen this phone's Maps, but only at the start of a route.** The captured
+  shape is a bare or empty `title`, the command in `text` ("Head southwest"), and
+  `subText` = "6 min · 3.1 km · 3:58 am ETA". Those samples are in `MapsParserTest`. What has *not*
+  been seen is an actual turn — "Turn left onto MG Road" is covered by tests written from the same
+  shape, not from a log. Ride a route and watch `adb logcat -s RideDash/MapsRaw`, then add whatever
+  comes out to `MapsParserTest` before touching `MapsParser`. The switch that keeps that logging on is
+  `ALWAYS_LOG_RAW` in `MapsNotificationListener`.
+- **Google Maps notifications must be allowed**, or there is no Navigating screen at all — the
+  listener has nothing to read and the dashboard stays on the Cruising tiles for ever. On the test
+  phone they were blocked by default (`importance=NONE`), which looks exactly like a broken parser.
+- **Screen pinning blocks everything else.** It is what stops a glove leaving the dashboard, but it
+  also blocks split screen, vivo's Small Window, and any other app being launched — a pinned app
+  refuses those with `START_RETURN_LOCK_TASK_MODE_VIOLATION`. Pinning is skipped automatically in
+  split screen for that reason.
 - **Lean sign.** If lean reads mirrored in the real mount, flip `LeanSource.LEAN_SIGN` to `-1f`. Zero
   it with a long press on the LEAN tile while the bike is upright — and remember a bar-mounted phone
   turns with the steering, so lean is approximate by construction.
@@ -115,6 +150,15 @@ says.
   brightness on, so leave it on.
 - **Heat.** Battery temperature is shown in the status bar once it passes 45 °C. In direct sun, a hood
   over the phone matters more than anything in software.
+
+## Screen sizes
+
+The mockup was drawn for 914 x 412 dp. The phone this runs on is 440 dpi and reports **801 x 361 dp**
+once the system bars are out, which is 113 dp narrower and 51 dp shorter. Three things were clipped off
+the screen before that was noticed: the trip line under the gauge, the whole ETA row on the Navigating
+panel, and, in split screen, everything. The gauge now sizes itself from the height it is given, the
+Navigating panel's type was retuned, and anything under 560 dp wide gets `CompactDashboard` instead.
+If the layout is ever changed, check it at 361 dp of height, not at the mockup's 412.
 
 ## Not built yet
 

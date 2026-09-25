@@ -10,6 +10,7 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.core.view.WindowCompat
@@ -69,6 +70,11 @@ class MainActivity : ComponentActivity() {
             val lastRide by produceState(RideSettings.LastRide()) {
                 settings.lastRide.collect { value = it }
             }
+            val brightness by produceState(RideSettings.BRIGHTNESS_AUTO) {
+                settings.brightness.collect { value = it }
+            }
+
+            LaunchedEffect(brightness) { applyBrightness(brightness) }
 
             RideDashTheme(night = state.night) {
                 when (current) {
@@ -88,6 +94,10 @@ class MainActivity : ComponentActivity() {
                         onCalibrateLean = {
                             DashboardService.calibrateLean(this)
                             toast(getString(R.string.toast_lean_zeroed))
+                        },
+                        brightness = brightness,
+                        onBrightnessChange = { level ->
+                            lifecycleScope.launch { settings.setBrightness(level) }
                         },
                     )
 
@@ -119,6 +129,20 @@ class MainActivity : ComponentActivity() {
     override fun onPause() {
         RideRepository.setActivityForeground(false)
         super.onPause()
+    }
+
+    /**
+     * Brightness for this window only. The system setting is left alone, so auto brightness — and the
+     * sunlight boost that rides on it — comes straight back when the dashboard is not in front.
+     */
+    private fun applyBrightness(value: Float) {
+        val params = window.attributes
+        params.screenBrightness = if (value < 0f) {
+            WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
+        } else {
+            value.coerceIn(RideSettings.BRIGHTNESS_MIN, 1f)
+        }
+        window.attributes = params
     }
 
     /** NFC tag on the mount, the charger trigger, the Quick Settings tile and the notification all land here. */
@@ -196,6 +220,12 @@ class MainActivity : ComponentActivity() {
      * failure is only logged.
      */
     private fun pinScreen() {
+        // Android refuses lock task in split screen, and asking anyway throws. Sharing the screen
+        // with Maps is a deliberate choice, so the pinning is simply skipped for as long as it lasts.
+        if (isInMultiWindowMode) {
+            Log.i(TAG, "In split screen, so no pinning: the other pane has to stay reachable")
+            return
+        }
         runCatching { startLockTask() }
             .onFailure { Log.w(TAG, "Screen pinning not available", it) }
     }

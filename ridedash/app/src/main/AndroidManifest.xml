@@ -15,6 +15,15 @@
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
+    <!--
+      Android 11 hides other installed packages unless they are named here. Without this,
+      getLaunchIntentForPackage returns null and the Map button reports Maps as missing even when it
+      is installed.
+    -->
+    <queries>
+        <package android:name="com.google.android.apps.maps" />
+    </queries>
+
     <uses-feature android:name="android.hardware.sensor.barometer" android:required="false" />
     <uses-feature android:name="android.hardware.sensor.compass" android:required="false" />
     <uses-feature android:name="android.hardware.nfc" android:required="false" />

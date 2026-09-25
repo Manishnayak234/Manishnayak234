@@ -1,6 +1,7 @@
 package com.manish.ridedash.nav
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Test
 
@@ -124,4 +125,73 @@ class MapsParserTest {
         assertEquals(first.maneuverKey, closer.maneuverKey)
         assertEquals(false, first.maneuverKey == next.maneuverKey)
     }
+    // --- Samples captured verbatim from Google Maps on the iQOO 9 SE, Android 14, via
+    // --- `adb logcat -s RideDash/MapsRaw`. This build leaves the title empty or bare, puts the
+    // --- command in the text, and writes the ETA as "3:58 am ETA".
+
+    @Test
+    fun `real sample - route just started, title empty and command in the text`() {
+        val nav = MapsParser.parse(
+            MapsParser.Fields(
+                title = "",
+                text = "Head southwest",
+                bigText = null,
+                subText = "6 min \u00b7 3.1 km \u00b7 3:58 am ETA",
+            )
+        )
+
+        assertNotNull(nav)
+        assertEquals("Head southwest", nav!!.instruction)
+        assertEquals("6 min", nav.remainingTime)
+        assertEquals("3.1 km", nav.remainingDistance)
+        assertEquals("3:58 am", nav.etaClock)
+    }
+
+    @Test
+    fun `real sample - title carries the bare distance`() {
+        val nav = MapsParser.parse(
+            MapsParser.Fields(
+                title = "0 m",
+                text = "Head southwest",
+                bigText = null,
+                subText = "6 min \u00b7 3.1 km \u00b7 4:00 am ETA",
+            )
+        )
+
+        assertNotNull(nav)
+        assertEquals("0", nav!!.distanceValue)
+        assertEquals("m", nav.distanceUnit)
+        assertEquals("Head southwest", nav.instruction)
+        assertEquals("4:00 am", nav.etaClock)
+    }
+
+    @Test
+    fun `command and street split apart so the rider sees both`() {
+        val nav = MapsParser.parse(
+            MapsParser.Fields(title = "200 m", text = "Turn left onto MG Road", subText = null)
+        )
+
+        assertNotNull(nav)
+        assertEquals("200", nav!!.distanceValue)
+        assertEquals("Turn left", nav.instruction)
+        assertEquals("MG Road", nav.street)
+    }
+
+    @Test
+    fun `a trailing ETA label does not swallow the clock`() {
+        val summary = MapsParser.parseSubText("6 min \u00b7 3.1 km \u00b7 3:58 am ETA")
+
+        assertEquals("3:58 am", summary.etaClock)
+        assertEquals("3.1 km", summary.remainingDistance)
+        assertEquals("6 min", summary.remainingTime)
+    }
+
+    @Test
+    fun `a decimal distance is never mistaken for a clock`() {
+        val summary = MapsParser.parseSubText("12 min \u00b7 3.10 km \u00b7 18:42")
+
+        assertEquals("3.10 km", summary.remainingDistance)
+        assertEquals("18:42", summary.etaClock)
+    }
+
 }

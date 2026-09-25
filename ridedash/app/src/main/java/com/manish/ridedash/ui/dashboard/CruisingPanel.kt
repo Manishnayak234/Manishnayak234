@@ -33,8 +33,12 @@ import com.manish.ridedash.ui.theme.rideColors
 import com.manish.ridedash.util.Formatters
 
 /**
- * The right panel with no route running (screen 4.2): heading, lean, altitude and the speed records,
- * as four tiles. A long press on the lean tile zeroes the lean angle with the bike upright.
+ * The right panel with no route running (screen 4.2): heading and lean. A long press on the lean
+ * tile zeroes the lean angle with the bike upright. The brightness strip beside it belongs to
+ * [DashboardScreen], so it stays put when a route starts and this panel is swapped out.
+ *
+ * Altitude and the max/avg speed records used to sit here too. They are still tracked, and still on
+ * the ride stats screen — they just are not worth a glance from the saddle.
  */
 @Composable
 fun CruisingPanel(
@@ -42,26 +46,14 @@ fun CruisingPanel(
     onCalibrateLean: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(
+    Row(
         modifier = modifier
             .fillMaxHeight()
-            .padding(horizontal = 12.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+            .padding(vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Row(
-            modifier = Modifier.weight(1f),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            HeadingTile(state, Modifier.weight(1f))
-            LeanTile(state, onCalibrateLean, Modifier.weight(1f))
-        }
-        Row(
-            modifier = Modifier.weight(1f),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            AltitudeTile(state, Modifier.weight(1f))
-            SpeedRecordTile(state, Modifier.weight(1f))
-        }
+        HeadingTile(state, Modifier.weight(1f))
+        LeanTile(state, onCalibrateLean, Modifier.weight(1f))
     }
 }
 
@@ -110,24 +102,6 @@ private fun LeanTile(state: RideState, onCalibrate: () -> Unit, modifier: Modifi
                 size = 68.dp,
             )
         }
-    }
-}
-
-@Composable
-private fun AltitudeTile(state: RideState, modifier: Modifier = Modifier) {
-    Tile(label = stringResource(R.string.tile_altitude), modifier = modifier) {
-        TileValue(text = Formatters.altitude(state.altitudeM))
-    }
-}
-
-@Composable
-private fun SpeedRecordTile(state: RideState, modifier: Modifier = Modifier) {
-    Tile(
-        label = stringResource(R.string.tile_speed),
-        modifier = modifier,
-        footer = stringResource(R.string.unit_kmh),
-    ) {
-        TileValue(text = Formatters.maxAvg(state.maxSpeedKmh, state.avgSpeedKmh))
     }
 }
 

@@ -1,9 +1,11 @@
 package com.manish.ridedash.service
 
+import android.Manifest
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.provider.Settings
@@ -119,6 +121,12 @@ class TriggerService : LifecycleService() {
     }
 
     private fun promptInstead() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+            != PackageManager.PERMISSION_GRANTED
+        ) {
+            Log.w(TAG, "POST_NOTIFICATIONS is not granted, so the start prompt cannot be shown")
+            return
+        }
         runCatching {
             NotificationManagerCompat.from(this)
                 .notify(Notifications.NOTIFICATION_START_PROMPT, Notifications.startPrompt(this))

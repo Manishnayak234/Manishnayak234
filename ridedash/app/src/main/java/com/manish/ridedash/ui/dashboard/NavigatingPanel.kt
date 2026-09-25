@@ -42,31 +42,41 @@ import com.manish.ridedash.util.Formatters
 /**
  * The right panel while a route is running (screen 4.1): the maneuver, how far to it, the street, how
  * far through the maneuver we are, what comes after it, and the trip summary along the bottom.
+ *
+ * The sizes are smaller than the mockup's. The mockup assumed a 412 dp tall screen; the phone this
+ * runs on reports 361 dp once the system bars are out, which leaves about 257 dp here — and at the
+ * drawn sizes the ETA row fell off the bottom of the screen entirely.
  */
 @Composable
-fun NavigatingPanel(nav: NavState, modifier: Modifier = Modifier) {
+fun NavigatingPanel(
+    nav: NavState,
+    /** Shown alongside the route numbers: the turn tells you what is next, this tells you which way
+     *  you are pointing right now. */
+    headingDeg: Float?,
+    modifier: Modifier = Modifier,
+) {
     val colors = rideColors
     Column(
         modifier = modifier
             .fillMaxHeight()
-            .padding(horizontal = 28.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+            .padding(horizontal = 24.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             ManeuverIcon(nav)
-            Spacer(Modifier.width(20.dp))
+            Spacer(Modifier.width(16.dp))
             Column {
                 Row(verticalAlignment = Alignment.Bottom) {
                     if (nav.distanceValue.isNotEmpty()) {
                         Text(
                             text = nav.distanceValue,
-                            style = numberStyle(92.sp, FontWeight.Bold),
+                            style = numberStyle(64.sp, FontWeight.Bold),
                             color = colors.fg,
                         )
                         Spacer(Modifier.width(6.dp))
                         Text(
                             text = nav.distanceUnit,
-                            style = numberStyle(30.sp, FontWeight.SemiBold),
+                            style = numberStyle(24.sp, FontWeight.SemiBold),
                             color = colors.sub,
                             modifier = Modifier.padding(bottom = 12.dp),
                         )
@@ -74,20 +84,31 @@ fun NavigatingPanel(nav: NavState, modifier: Modifier = Modifier) {
                         // Maps sometimes gives words instead of a distance ("Head north on ...").
                         Text(
                             text = nav.instruction.orEmpty().ifEmpty { Formatters.PLACEHOLDER },
-                            style = numberStyle(56.sp, FontWeight.Bold),
+                            style = numberStyle(40.sp, FontWeight.Bold),
                             color = colors.fg,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
                     }
                 }
-                Text(
-                    text = nav.street.ifEmpty { nav.instruction.orEmpty() }.ifEmpty { Formatters.PLACEHOLDER },
-                    style = streetStyle,
-                    color = colors.fg,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                // "Turn left · MG Road": the command in words, then where it lands. The arrow says
+                // the same thing at a glance, but the words are what you check it against. When there
+                // was no distance the instruction is already the headline above, so it is not
+                // repeated here.
+                val secondLine = listOfNotNull(
+                    nav.instruction?.takeIf { it.isNotEmpty() && nav.distanceValue.isNotEmpty() },
+                    nav.street.takeIf { it.isNotEmpty() },
+                ).joinToString(" · ")
+
+                if (secondLine.isNotEmpty()) {
+                    Text(
+                        text = secondLine,
+                        style = streetStyle.copy(fontSize = 22.sp),
+                        color = colors.fg,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
         }
 
@@ -131,6 +152,7 @@ fun NavigatingPanel(nav: NavState, modifier: Modifier = Modifier) {
             SummaryCell(stringResource(R.string.nav_eta), nav.etaClock)
             SummaryCell(stringResource(R.string.nav_left), nav.remainingDistance)
             SummaryCell(stringResource(R.string.nav_time), nav.remainingTime)
+            SummaryCell(stringResource(R.string.tile_heading), Formatters.heading(headingDeg))
         }
     }
 }
@@ -147,10 +169,10 @@ private fun ManeuverIcon(nav: NavState) {
             contentDescription = null,
             colorFilter = ColorFilter.tint(colors.nav),
             contentScale = ContentScale.Fit,
-            modifier = Modifier.size(112.dp),
+            modifier = Modifier.size(84.dp),
         )
     } else {
-        TurnArrowFallback(color = colors.nav, size = 112.dp)
+        TurnArrowFallback(color = colors.nav, size = 84.dp)
     }
 }
 
@@ -182,7 +204,7 @@ private fun SummaryCell(label: String, value: String?) {
         Text(text = label, style = labelStyle, color = colors.sub)
         Text(
             text = value ?: Formatters.PLACEHOLDER,
-            style = numberStyle(32.sp, FontWeight.Bold),
+            style = numberStyle(24.sp, FontWeight.Bold),
             color = colors.fg,
         )
     }
@@ -205,6 +227,7 @@ private fun NavigatingPanelPreview() {
                 remainingTime = "24 min",
                 progress = 0.55f,
             ),
+            headingDeg = 30f,
         )
     }
 }

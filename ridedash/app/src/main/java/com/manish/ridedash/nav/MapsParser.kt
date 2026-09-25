@@ -37,8 +37,31 @@ object MapsParser {
         setOf(RegexOption.IGNORE_CASE),
     )
 
+    /**
+     * The clock inside an ETA chunk. It is found rather than matched whole, because Maps on this
+     * phone writes "3:58 am ETA" — the label travels with the time, and older builds put it in front
+     * as "ETA 18:42".
+     */
     private val clockRegex = Regex(
-        """^\s*\d{1,2}[:.]\d{2}(?:\s*(?:am|pm|AM|PM))?\s*$""",
+        """\b\d{1,2}[:.]\d{2}(?:\s*(?:am|pm))?""",
+        RegexOption.IGNORE_CASE,
+    )
+
+    /**
+     * Whether a line is Maps telling you to do something rather than naming a road. "Turn left onto
+     * MG Road" is a command; a bare "MG Road" is the street the current maneuver ends on, and must
+     * stay a street or the rider loses the road name.
+     */
+    private val commandRegex = Regex(
+        """^(?:head|turn|continue|keep|take|merge|exit|slight|sharp|make|go|follow|bear|enter|""" +
+            """leave|stay|proceed|cross|use|arrive|destination|walk|ramp)\b""",
+        RegexOption.IGNORE_CASE,
+    )
+
+    /** Splits "Turn left onto MG Road" into the command and the street it lands on. */
+    private val ontoRegex = Regex(
+        """\b(?:onto|on to|on|towards|toward)\s+(.+)$""",
+        RegexOption.IGNORE_CASE,
     )
 
     private val durationRegex = Regex(
@@ -60,7 +83,7 @@ object MapsParser {
         val distance = titleDistance ?: findDistance(text) ?: findDistance(bigText)
 
         // What the title says to do, with the distance taken out of it.
-        val instruction = if (titleDistance != null) {
+        var instruction = if (titleDistance != null) {
             instructionAround(title, titleDistance)
         } else {
             tidy(title).takeIf { it.isNotEmpty() }
@@ -77,11 +100,27 @@ object MapsParser {
             ?.takeIf { it.isNotEmpty() }
 
         // The street is the body's first line, minus a "Then ..." line that belongs to the next turn.
-        val street = body.lineSequence()
+        var street = body.lineSequence()
             .map { it.trim() }
             .filter { it.isNotEmpty() && !it.startsWith("then", ignoreCase = true) }
             .firstOrNull()
             .orEmpty()
+
+        // Maps on this phone puts the bare distance in the title ("0 m", "200 m") and the whole
+        // command in the text ("Head southwest", "Turn left onto MG Road"), and leaves the title
+        // empty for the first moments of a route. So when the title yielded no command, take it from
+        // the body and split the street back out of it — otherwise the rider gets a street name where
+        // the instruction should be, and no instruction at all.
+        if (instruction.isNullOrEmpty() && commandRegex.containsMatchIn(street)) {
+            val onto = ontoRegex.find(street)
+            if (onto != null) {
+                instruction = tidy(street.take(onto.range.first)).takeIf { it.isNotEmpty() }
+                street = onto.groupValues[1].trim()
+            } else {
+                instruction = street
+                street = ""
+            }
+        }
 
         val summary = parseSubText(subText)
 
@@ -113,11 +152,15 @@ object MapsParser {
             .map { it.trim() }
             .filter { it.isNotEmpty() }
             .forEach { chunk ->
+                // Order matters: a distance like "3.10 km" also looks like a clock, so the units
+                // get first refusal and only what is left can be the ETA.
                 when {
-                    clockRegex.matches(chunk) -> etaClock = etaClock ?: chunk
                     durationRegex.containsMatchIn(chunk) -> remainingTime = remainingTime ?: chunk
                     distanceRegex.containsMatchIn(chunk) ->
                         remainingDistance = remainingDistance ?: chunk
+                    else -> clockRegex.find(chunk)?.let { match ->
+                        etaClock = etaClock ?: match.value.trim()
+                    }
                 }
             }
 

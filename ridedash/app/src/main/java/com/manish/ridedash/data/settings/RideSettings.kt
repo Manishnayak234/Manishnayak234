@@ -29,6 +29,9 @@ class RideSettings(context: Context) {
         OverlayPosition(x = it[OVERLAY_X] ?: DEFAULT_OVERLAY_X, y = it[OVERLAY_Y] ?: DEFAULT_OVERLAY_Y)
     }
 
+    /** Screen brightness for dashboard mode: [BRIGHTNESS_AUTO], or 0..1 set on the slider. */
+    val brightness: Flow<Float> = store.data.map { it[BRIGHTNESS] ?: BRIGHTNESS_AUTO }
+
     val chargerTriggerEnabled: Flow<Boolean> = store.data.map { it[CHARGER_TRIGGER] ?: true }
 
     /** Only let the charger start the dashboard if the mount's NFC tag was tapped recently. */
@@ -52,6 +55,8 @@ class RideSettings(context: Context) {
         it[OVERLAY_X] = x
         it[OVERLAY_Y] = y
     }
+
+    suspend fun setBrightness(value: Float) = store.edit { it[BRIGHTNESS] = value }
 
     suspend fun setChargerTriggerEnabled(enabled: Boolean) =
         store.edit { it[CHARGER_TRIGGER] = enabled }
@@ -97,7 +102,17 @@ class RideSettings(context: Context) {
         /** How recent an NFC tap has to be for the charger trigger to accept it. */
         const val NFC_WINDOW_MS = 60_000L
 
+        /**
+         * Hands the screen back to the system, which is what the brief asks for by default: the
+         * sunlight boost on this phone only kicks in under auto brightness.
+         */
+        const val BRIGHTNESS_AUTO = -1f
+
+        /** Never let the slider reach black — it would be unreadable, and hard to undo with gloves. */
+        const val BRIGHTNESS_MIN = 0.05f
+
         private val LEAN_ZERO = floatPreferencesKey("lean_zero_deg")
+        private val BRIGHTNESS = floatPreferencesKey("brightness")
         private val OVERLAY_X = intPreferencesKey("overlay_x")
         private val OVERLAY_Y = intPreferencesKey("overlay_y")
         private val CHARGER_TRIGGER = booleanPreferencesKey("charger_trigger")

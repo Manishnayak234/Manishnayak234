@@ -1,10 +1,14 @@
 package com.manish.ridedash.nav
 
+import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
+import android.content.pm.PackageManager
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
 import com.manish.ridedash.R
 import com.manish.ridedash.data.NavState
 
@@ -76,6 +80,15 @@ class TurnAlerts(private val context: Context) {
             .setLocalOnly(false)
             .build()
 
+        // From Android 13 the rider has to allow notifications by hand. Without it the post is
+        // dropped on the floor and the watch simply stays quiet, so say so in the log instead.
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS)
+            != PackageManager.PERMISSION_GRANTED
+        ) {
+            Log.w(TAG, "POST_NOTIFICATIONS is not granted, so the watch alert cannot be sent")
+            return
+        }
+
         runCatching { manager.notify(NOTIFICATION_TURN, notification) }
     }
 
@@ -86,6 +99,8 @@ class TurnAlerts(private val context: Context) {
     }
 
     companion object {
+        private const val TAG = "RideDash/Turns"
+
         const val CHANNEL_TURNS = "ridedash.turns"
         const val NOTIFICATION_TURN = 42
 

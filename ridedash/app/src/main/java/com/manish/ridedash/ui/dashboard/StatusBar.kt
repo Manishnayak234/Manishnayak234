@@ -9,8 +9,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.produceState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -121,9 +124,10 @@ private fun batteryFill(state: RideState, normal: Color, charging: Color): Color
 private fun clockText(): String {
     val context = LocalContext.current
     val use24h = DateFormat.is24HourFormat(context)
-    val text by produceState(initialValue = currentClock(use24h), use24h) {
+    var text by remember(use24h) { mutableStateOf(currentClock(use24h)) }
+    LaunchedEffect(use24h) {
         while (true) {
-            value = currentClock(use24h)
+            text = currentClock(use24h)
             delay(10_000L)
         }
     }

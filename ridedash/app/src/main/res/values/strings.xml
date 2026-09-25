@@ -13,6 +13,8 @@
     <string name="no_value">--</string>
 
     <!-- Tiles -->
+    <string name="brightness_auto_short">AUTO</string>
+    <string name="brightness_auto_button">A</string>
     <string name="tile_heading">HEADING</string>
     <string name="tile_lean">LEAN</string>
     <string name="tile_altitude">ALTITUDE</string>

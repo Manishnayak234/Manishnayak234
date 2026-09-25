@@ -2,10 +2,12 @@ package com.manish.ridedash.ui.dashboard
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -34,55 +36,89 @@ fun DashboardScreen(
     onRideStats: () -> Unit,
     onExit: () -> Unit,
     onCalibrateLean: () -> Unit,
+    brightness: Float,
+    onBrightnessChange: (Float) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = rideColors
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(colors.bg),
-    ) {
-        StatusBar(state)
-
-        Row(modifier = Modifier.weight(1f)) {
-            Box(
-                modifier = Modifier
-                    .width(LEFT_PANEL_WIDTH)
-                    .fillMaxHeight()
-                    .drawBehind {
-                        drawLine(
-                            color = colors.line,
-                            start = Offset(size.width, 0f),
-                            end = Offset(size.width, size.height),
-                            strokeWidth = 1f,
-                        )
-                    },
-                contentAlignment = Alignment.Center,
-            ) {
-                SpeedGauge(
-                    speedKmh = state.speedKmh,
-                    speedValid = state.speedValid && state.gpsFix,
-                    tripLine = "${Formatters.tripKm(state.tripKm)} · ${Formatters.rideTime(state.rideTimeMs)}",
-                )
-            }
-
-            val nav = state.nav
-            if (nav != null) {
-                NavigatingPanel(nav = nav, modifier = Modifier.weight(1f))
-            } else {
-                CruisingPanel(
-                    state = state,
-                    onCalibrateLean = onCalibrateLean,
-                    modifier = Modifier.weight(1f),
-                )
-            }
+    BoxWithConstraints(modifier = modifier.fillMaxSize()) {
+        // Split screen hands us about half the width. The gauge alone claims 360 dp of the 801 the
+        // full layout needs, so below this there is no point shrinking it — the compact dashboard
+        // drops everything Maps is already showing in the other pane.
+        if (maxWidth < COMPACT_WIDTH) {
+            CompactDashboard(
+                state = state,
+                onExit = onExit,
+                brightness = brightness,
+                onBrightnessChange = onBrightnessChange,
+            )
+            return@BoxWithConstraints
         }
 
-        BottomBar(onMap = onMap, onRideStats = onRideStats, onExit = onExit)
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(colors.bg),
+        ) {
+            StatusBar(state)
+
+            Row(modifier = Modifier.weight(1f)) {
+                Box(
+                    modifier = Modifier
+                        .width(LEFT_PANEL_WIDTH)
+                        .fillMaxHeight()
+                        .drawBehind {
+                            drawLine(
+                                color = colors.line,
+                                start = Offset(size.width, 0f),
+                                end = Offset(size.width, size.height),
+                                strokeWidth = 1f,
+                            )
+                        },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    SpeedGauge(
+                        speedKmh = state.speedKmh,
+                        speedValid = state.speedValid && state.gpsFix,
+                        tripLine = "${Formatters.tripKm(state.tripKm)} · ${Formatters.rideTime(state.rideTimeMs)}",
+                    )
+                }
+
+                val nav = state.nav
+                if (nav != null) {
+                    NavigatingPanel(
+                        nav = nav,
+                        headingDeg = state.headingDeg,
+                        modifier = Modifier.weight(1f),
+                    )
+                } else {
+                    CruisingPanel(
+                        state = state,
+                        onCalibrateLean = onCalibrateLean,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+
+                // Outside the if/else deliberately: brightness has to stay reachable whether or not a
+                // route is running, and it used to vanish the moment the Navigating panel took over.
+                BrightnessSlider(
+                    value = brightness,
+                    onValueChange = onBrightnessChange,
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .padding(end = 12.dp, top = 12.dp, bottom = 12.dp),
+                )
+            }
+
+            BottomBar(onMap = onMap, onRideStats = onRideStats, onExit = onExit)
+        }
     }
 }
 
 private val LEFT_PANEL_WIDTH = 360.dp
+
+/** Under this the full layout cannot be drawn honestly, so the compact one takes over. */
+private val COMPACT_WIDTH = 560.dp
 
 @Preview(name = "Navigating", widthDp = 914, heightDp = 412, showBackground = true, backgroundColor = 0xFF000000)
 @Composable
@@ -116,6 +152,8 @@ private fun DashboardNavigatingPreview() {
             onRideStats = {},
             onExit = {},
             onCalibrateLean = {},
+            brightness = 0.6f,
+            onBrightnessChange = {},
         )
     }
 }
@@ -147,6 +185,8 @@ private fun DashboardCruisingPreview() {
             onRideStats = {},
             onExit = {},
             onCalibrateLean = {},
+            brightness = 0.6f,
+            onBrightnessChange = {},
         )
     }
 }

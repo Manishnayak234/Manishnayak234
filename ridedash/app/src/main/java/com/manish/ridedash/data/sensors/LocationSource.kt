@@ -139,7 +139,7 @@ class LocationSource(
         val rawKmh = if (location.hasSpeed()) location.speed * 3.6f else 0f
         val speedTrusted = location.hasSpeed() && speedAccuracyOk(location)
         val smoothedKmh = speedFilter.add(rawKmh, nowMs)
-        val shownKmh = if (smoothedKmh < SPEED_FLOOR_KMH) 0f else smoothedKmh
+        val shownKmh = if (isStandingStill(smoothedKmh, location)) 0f else smoothedKmh
 
         trip.add(
             TripTracker.Sample(
@@ -174,6 +174,19 @@ class LocationSource(
         }
     }
 
+    /**
+     * Fused location keeps reporting a small velocity on a phone that is standing still — measured on
+     * the bench at 0.45 m/s with a speed accuracy of 0.40 m/s, while the raw GPS provider said a flat
+     * zero. A reading that sits inside its own error bar says nothing, so anything under the floor, or
+     * small next to its own accuracy, reads as a clean zero rather than a number that drifts on a
+     * parked bike.
+     */
+    private fun isStandingStill(smoothedKmh: Float, location: Location): Boolean {
+        if (smoothedKmh < SPEED_FLOOR_KMH) return true
+        if (!location.hasSpeedAccuracy()) return false
+        return smoothedKmh < location.speedAccuracyMetersPerSecond * 3.6f * SPEED_NOISE_FACTOR
+    }
+
     private fun speedAccuracyOk(location: Location): Boolean =
         !location.hasSpeedAccuracy() || location.speedAccuracyMetersPerSecond <= MAX_SPEED_ACCURACY_MS
 
@@ -191,6 +204,9 @@ class LocationSource(
 
         /** Below this the number reads 0 instead of jittering around on a standing bike. */
         const val SPEED_FLOOR_KMH = 2f
+
+        /** How far above its own speed accuracy a reading has to sit before it counts as movement. */
+        const val SPEED_NOISE_FACTOR = 3f
         const val HEADING_FROM_GPS_KMH = 5f
         const val MAX_SPEED_ACCURACY_MS = 3f
         const val FIX_STALE_MS = 5_000L
