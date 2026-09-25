@@ -87,17 +87,27 @@ overlay only read it.
 | 7 | Dashboard mode: pinning, Hold to exit, NFC and charger triggers, onboarding | done |
 | 8 | Polish: heat warning, ride stats, persisted trip data | heat warning and stats done; full trip history is v2 |
 
+## Getting an APK without building it yourself
+
+Every push to this branch builds a debug APK in GitHub Actions
+([workflow](../.github/workflows/android.yml)). Open the latest run under the repository's **Actions**
+tab, scroll to **Artifacts**, and download **`ridedash-debug-apk`** — GitHub wraps it in a zip, so
+unzip it and install `app-debug.apk`, or `adb install` it from the laptop. The same run also uploads
+**`ridedash-reports`** with the lint and unit-test HTML reports.
+
+It is signed with a throwaway debug key, so uninstall it before installing a build from your own
+Android Studio; two different signatures cannot sit on top of each other.
+
 ## What has been checked, and what has not
 
-The whole pure-logic layer was compiled with Kotlin 2.0.21 and its unit tests run: 40 tests over the
+The build is green in CI: `assembleDebug` packages the APK, the unit tests pass (40 tests over the
 Maps parser, maneuver progress, watch-alert glyphs, trip maths, speed smoothing, heading wrap-around
-and all the number formatting. They pass.
+and the number formatting), and Android lint reports no errors.
 
-The **Android build has not been run**: the container this was written in cannot reach the Android SDK
-or Google's Maven repository, so nothing here has been through AGP, Compose's compiler or lint, and it
-has never been on a phone. Treat the first `./gradlew installDebug` in Android Studio as the real first
-compile — expect to fix the odd import or API detail, and do it milestone by milestone as the brief
-says.
+What that does **not** cover is a phone. Nothing here has run on a device, so the sensors, the Maps
+notification parsing, the overlay over Google Maps, screen pinning and the vivo-specific entry
+triggers are all unproven in the only place that counts. Work down the list below on the bike,
+milestone by milestone.
 
 ## Things to check on the real bike
 
