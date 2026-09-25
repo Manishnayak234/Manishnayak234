@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">RideDash</string>
+    <string name="notification_listener_label">RideDash turn reader</string>
+    <string name="tile_label">RideDash</string>
+
+    <!-- Dashboard chrome -->
+    <string name="btn_map">MAP</string>
+    <string name="btn_ride_stats">RIDE STATS</string>
+    <string name="btn_hold_to_exit">HOLD TO EXIT</string>
+    <string name="btn_exiting">RELEASE TO STAY</string>
+    <string name="unit_kmh">km/h</string>
+    <string name="no_value">--</string>
+
+    <!-- Tiles -->
+    <string name="tile_heading">HEADING</string>
+    <string name="tile_lean">LEAN</string>
+    <string name="tile_altitude">ALTITUDE</string>
+    <string name="tile_speed">MAX · AVG SPEED</string>
+
+    <!-- Navigating panel -->
+    <string name="nav_then">THEN</string>
+    <string name="nav_eta">ETA</string>
+    <string name="nav_left">LEFT</string>
+    <string name="nav_time">TIME</string>
+
+    <!-- Service notifications -->
+    <string name="channel_service_name">Dashboard running</string>
+    <string name="channel_service_desc">Keeps GPS and sensors alive while the dashboard is on.</string>
+    <string name="channel_turns_name">Turn alerts</string>
+    <string name="channel_turns_desc">Mirrors the next turn to the watch.</string>
+    <string name="channel_trigger_name">Bike charger watch</string>
+    <string name="channel_trigger_desc">Waits for the bike charger so the dashboard can start itself.</string>
+    <string name="service_running_title">RideDash dashboard</string>
+    <string name="service_running_text">GPS and sensors active</string>
+    <string name="channel_prompt_name">Start the dashboard?</string>
+    <string name="channel_prompt_desc">Asks before taking over the screen when a charger is plugged in.</string>
+    <string name="trigger_running_title">RideDash ready</string>
+    <string name="trigger_running_text">Waiting for the bike charger</string>
+
+    <!-- Onboarding -->
+    <string name="onboarding_title">RIDEDASH SETUP</string>
+    <string name="onboarding_subtitle">Grant these once. The dashboard needs them every ride.</string>
+    <string name="onboarding_start">START DASHBOARD</string>
+    <string name="onboarding_grant">GRANT</string>
+    <string name="onboarding_open">OPEN</string>
+    <string name="onboarding_done">OK</string>
+    <string name="onboarding_recheck">RE-CHECK</string>
+    <string name="onboarding_vivo_header">VIVO / IQOO — DO THESE BY HAND</string>
+
+    <!-- Ride stats stub -->
+    <string name="stats_title">RIDE STATS</string>
+    <string name="stats_stub">Full trip history lands in v2. This is the current ride.</string>
+    <string name="stats_back">BACK</string>
+
+    <!-- Setup checklist -->
+    <string name="setup_location_title">Location (precise)</string>
+    <string name="setup_location_hint">Speed, trip distance and heading all come from GPS.</string>
+    <string name="setup_background_location_title">Location in the background</string>
+    <string name="setup_background_location_hint">Only needed if the dashboard should keep logging with the screen off.</string>
+    <string name="setup_notifications_title">Post notifications</string>
+    <string name="setup_notifications_hint">The foreground service notice and the turn alerts for the watch.</string>
+    <string name="setup_overlay_title">Display over other apps</string>
+    <string name="setup_overlay_hint">Draws the speed box over Google Maps, and lets the charger start the dashboard.</string>
+    <string name="setup_listener_title">Notification access</string>
+    <string name="setup_listener_hint">Reads the Google Maps turn notification. Without it there is no navigation screen.</string>
+    <string name="setup_nfc_title">NFC</string>
+    <string name="setup_nfc_hint">For the tag on the mount. Skip it if you start the dashboard by hand.</string>
+    <string name="setup_battery_title">Ignore battery optimisation</string>
+    <string name="setup_battery_hint">Stops the system killing the service on a long ride.</string>
+    <string name="setup_autostart_title">Autostart (vivo / iQOO)</string>
+    <string name="setup_autostart_hint">Phone settings: Apps &#8594; RideDash &#8594; Autostart. Cannot be read by the app.</string>
+    <string name="setup_bgpower_title">Background power: Allow</string>
+    <string name="setup_bgpower_hint">Battery &#8594; Background power consumption &#8594; RideDash &#8594; Allow.</string>
+    <string name="setup_recents_title">Lock in Recents</string>
+    <string name="setup_recents_hint">Open Recents, pull RideDash down and lock it so the system leaves it alone.</string>
+    <string name="setup_optional">optional</string>
+    <string name="setup_manual">by hand</string>
+
+    <!-- Toasts -->
+    <string name="toast_lean_zeroed">Lean zeroed</string>
+    <string name="toast_no_maps">Google Maps is not installed</string>
+    <string name="toast_no_settings_page">This phone has no page for that setting</string>
+
+    <!-- Warnings -->
+    <string name="warn_hot">HOT</string>
+</resources>
