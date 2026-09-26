@@ -21,15 +21,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.manish.ridedash.R
 import com.manish.ridedash.data.NavState
 import com.manish.ridedash.data.RideState
 import com.manish.ridedash.ui.theme.RideDashTheme
+import com.manish.ridedash.ui.theme.Warn
 import com.manish.ridedash.ui.theme.numberStyle
 import com.manish.ridedash.ui.theme.rideColors
 import com.manish.ridedash.util.Formatters
@@ -48,6 +51,7 @@ import com.manish.ridedash.util.Formatters
 fun CompactDashboard(
     state: RideState,
     sweepKmh: Float? = null,
+    nowMs: Long = 0L,
     onExit: () -> Unit,
     brightness: Float,
     onBrightnessChange: (Float) -> Unit,
@@ -59,7 +63,7 @@ fun CompactDashboard(
             .fillMaxSize()
             .background(colors.bg),
     ) {
-        StatusBar(state)
+        StatusBar(state, nowMs)
 
         Row(modifier = Modifier.weight(1f)) {
             Column(
@@ -76,13 +80,14 @@ fun CompactDashboard(
                 }
 
                 Row(verticalAlignment = Alignment.Bottom) {
+                    val overspeed = sweepKmh == null && state.overspeed
                     Text(
                         text = Formatters.speed(
                             sweepKmh ?: state.speedKmh,
                             sweepKmh != null || (state.speedValid && state.gpsFix),
                         ),
                         style = numberStyle(96.sp, FontWeight.ExtraBold, italic = true),
-                        color = colors.fg,
+                        color = if (overspeed) Warn else colors.fg,
                         maxLines = 1,
                     )
                     Spacer(Modifier.width(6.dp))
@@ -94,10 +99,16 @@ fun CompactDashboard(
                     )
                 }
 
+                val overspeedLine = sweepKmh == null && state.overspeed
                 Text(
-                    text = "${Formatters.tripKm(state.tripKm)} · ${Formatters.rideTime(state.rideTimeMs)}",
-                    style = numberStyle(16.sp, FontWeight.SemiBold),
-                    color = colors.sub,
+                    text = if (overspeedLine) {
+                        stringResource(R.string.overspeed_warning)
+                    } else {
+                        "${Formatters.tripKm(state.tripKm)} · ${Formatters.rideTime(state.rideTimeMs)}"
+                    },
+                    style = numberStyle(if (overspeedLine) 18.sp else 16.sp, FontWeight.Bold),
+                    color = if (overspeedLine) Warn else colors.sub,
+                    maxLines = 1,
                 )
             }
 

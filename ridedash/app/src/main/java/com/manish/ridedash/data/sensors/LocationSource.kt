@@ -21,6 +21,7 @@ import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.manish.ridedash.data.RideRepository
 import com.manish.ridedash.data.SpeedFilter
+import com.manish.ridedash.data.OverspeedGate
 import com.manish.ridedash.data.TripTracker
 
 /**
@@ -43,6 +44,7 @@ class LocationSource(
     private val fused = LocationServices.getFusedLocationProviderClient(context)
 
     private val speedFilter = SpeedFilter()
+    private val overspeed = OverspeedGate()
     private val trip = TripTracker()
 
     private var started = false
@@ -124,7 +126,8 @@ class LocationSource(
         if (lastFixAtMs == 0L) return
         if (nowMs - lastFixAtMs > FIX_STALE_MS) {
             speedFilter.reset()
-            RideRepository.update { it.copy(gpsFix = false, speedValid = false) }
+            overspeed.reset()
+            RideRepository.update { it.copy(gpsFix = false, speedValid = false, overspeed = false) }
         }
     }
 
@@ -153,10 +156,13 @@ class LocationSource(
             )
         )
 
+        val overspeeding = overspeed.update(shownKmh, speedTrusted)
+
         RideRepository.update { state ->
             state.copy(
                 speedKmh = shownKmh,
                 speedValid = speedTrusted,
+                overspeed = overspeeding,
                 gpsFix = true,
                 tripKm = (trip.distanceM / 1000.0).toFloat(),
                 rideTimeMs = trip.movingTimeMs,

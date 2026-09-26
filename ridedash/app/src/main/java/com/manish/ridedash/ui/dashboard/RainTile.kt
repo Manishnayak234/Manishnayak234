@@ -55,7 +55,7 @@ fun RainTile(
         modifier = modifier
             .clip(RoundedCornerShape(14.dp))
             .background(colors.tile)
-            .padding(horizontal = 14.dp, vertical = 10.dp),
+            .padding(horizontal = 14.dp, vertical = 8.dp),
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -169,7 +169,12 @@ private fun RainBar(hour: RainHour, stale: Boolean) {
 }
 
 private val BAR_WIDTH = 16.dp
-private val BAR_MAX_HEIGHT = 34.dp
+
+/**
+ * Deliberately shorter than it looks like it could be. The bar plus its hour label has to fit the
+ * tile alongside the header, and at 34 dp the labels were being clipped off the bottom edge.
+ */
+private val BAR_MAX_HEIGHT = 26.dp
 
 @Preview(widthDp = 470, heightDp = 110, showBackground = true, backgroundColor = 0xFF000000)
 @Composable

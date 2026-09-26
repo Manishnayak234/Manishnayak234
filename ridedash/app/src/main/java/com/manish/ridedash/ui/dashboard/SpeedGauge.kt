@@ -15,6 +15,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
@@ -23,7 +24,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.manish.ridedash.R
 import com.manish.ridedash.ui.theme.RideDashTheme
+import com.manish.ridedash.ui.theme.Warn
 import com.manish.ridedash.ui.theme.numberStyle
 import com.manish.ridedash.ui.theme.rideColors
 import com.manish.ridedash.util.Formatters
@@ -42,12 +45,18 @@ fun SpeedGauge(
     speedKmh: Float,
     speedValid: Boolean,
     tripLine: String,
+    /** Turns the arc, the number and the line beneath it into the speed warning. */
+    overspeed: Boolean = false,
     modifier: Modifier = Modifier,
     diameter: Dp = 290.dp,
     maxKmh: Float = MAX_SCALE_KMH,
 ) {
     val colors = rideColors
     val measurer = rememberTextMeasurer()
+    // One colour decision shared by the arc, the number and the line below, so the warning reads as
+    // one thing rather than three that happened to change at once.
+    val speedColor = if (overspeed) Warn else colors.fg
+    val arcColor = if (overspeed) Warn else colors.accent
     val scaleStyle = numberStyle(17.sp, FontWeight.SemiBold).copy(color = colors.sub)
 
     BoxWithConstraints(modifier = modifier, contentAlignment = Alignment.Center) {
@@ -82,7 +91,7 @@ fun SpeedGauge(
                     val fraction = if (speedValid) (speedKmh / maxKmh).coerceIn(0f, 1f) else 0f
                     if (fraction > 0f) {
                         drawArc(
-                            color = colors.accent,
+                            color = arcColor,
                             startAngle = START_ANGLE,
                             sweepAngle = SWEEP_ANGLE * fraction,
                             useCenter = false,
@@ -113,7 +122,7 @@ fun SpeedGauge(
                     Text(
                         text = Formatters.speed(speedKmh, speedValid),
                         style = numberStyle(116.sp, FontWeight.ExtraBold, italic = true),
-                        color = colors.fg,
+                        color = speedColor,
                     )
                     Text(
                         text = "km/h",
@@ -123,10 +132,13 @@ fun SpeedGauge(
                 }
             }
 
+            // The warning takes the trip line's place rather than being added somewhere: same spot,
+            // no layout shift, and the trip total is not what matters at that moment.
             Text(
-                text = tripLine,
-                style = numberStyle(17.sp, FontWeight.SemiBold),
-                color = colors.sub,
+                text = if (overspeed) stringResource(R.string.overspeed_warning) else tripLine,
+                style = numberStyle(if (overspeed) 20.sp else 17.sp, FontWeight.Bold),
+                color = if (overspeed) Warn else colors.sub,
+                maxLines = 1,
             )
         }
     }
@@ -151,6 +163,19 @@ private fun SpeedGaugePreview() {
             speedKmh = 72f,
             speedValid = true,
             tripLine = "12.4 km · 0:38",
+        )
+    }
+}
+
+@Preview(widthDp = 360, heightDp = 340, showBackground = true, backgroundColor = 0xFF000000)
+@Composable
+private fun SpeedGaugeOverspeedPreview() {
+    RideDashTheme {
+        SpeedGauge(
+            speedKmh = 94f,
+            speedValid = true,
+            tripLine = "12.4 km \u00b7 0:38",
+            overspeed = true,
         )
     }
 }

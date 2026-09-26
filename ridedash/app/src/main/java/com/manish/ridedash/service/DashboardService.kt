@@ -49,6 +49,8 @@ class DashboardService : LifecycleService() {
     private val location by lazy { LocationSource(this, baro::onGpsAltitude, ::onPosition) }
     private val weather = WeatherSource()
 
+    private var weatherJob: Job? = null
+
     @Volatile private var lastLatitude: Double? = null
     @Volatile private var lastLongitude: Double? = null
     private val lean by lazy { LeanSource(this) }
@@ -160,7 +162,7 @@ class DashboardService : LifecycleService() {
             while (true) {
                 location.checkStale(System.currentTimeMillis())
                 if (tick % BLUETOOTH_EVERY_TICKS == 0) bluetooth.refresh()
-                if (tick % WEATHER_EVERY_TICKS == 0) refreshWeatherIfDue()
+                if (tick % WEATHER_EVERY_TICKS == 0) refreshWeatherInBackground()
                 tick++
                 delay(TICK_MS)
             }
@@ -173,7 +175,20 @@ class DashboardService : LifecycleService() {
         lastLongitude = longitude
         // The periodic check is a minute apart, which is far too long to stare at an empty tile at
         // the start of a ride. The first fix asks straight away.
-        if (first) lifecycleScope.launch { refreshWeatherIfDue() }
+        if (first) refreshWeatherInBackground()
+    }
+
+    /**
+     * Off the tick loop, always.
+     *
+     * The forecast call can sit there until its timeout when there is no signal — which is exactly
+     * when a rider is most likely to be out of coverage — and awaiting it inline stalled the one
+     * second tick, so a dropped GPS fix would not have greyed out for as long as the request hung.
+     * Weather is the least urgent thing this service does and must never hold up the rest of it.
+     */
+    private fun refreshWeatherInBackground() {
+        if (weatherJob?.isActive == true) return
+        weatherJob = lifecycleScope.launch { refreshWeatherIfDue() }
     }
 
     /**

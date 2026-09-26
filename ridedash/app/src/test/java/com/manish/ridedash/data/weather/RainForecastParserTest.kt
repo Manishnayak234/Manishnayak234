@@ -127,4 +127,30 @@ class RainForecastParserTest {
         assertEquals(false, forecast.staleAt(RainForecast.STALE_AFTER_MS - 1))
         assertTrue(forecast.staleAt(RainForecast.STALE_AFTER_MS + 1))
     }
+    @Test
+    fun `the near-term peak ignores later hours`() {
+        val forecast = RainForecast(
+            temperatureC = 25f,
+            hours = listOf(
+                RainHour(14, 5),
+                RainHour(15, 10),
+                RainHour(16, 90),
+            ),
+        )
+
+        // A downpour three hours out must not light up the status bar as if it were imminent.
+        assertEquals(10, forecast.peakWithin(2))
+        assertEquals(90, forecast.peakWithin(3))
+        assertEquals(90, forecast.peakChance)
+    }
+
+    @Test
+    fun `the near-term peak copes with a short or empty window`() {
+        val forecast = RainForecast(temperatureC = null, hours = listOf(RainHour(14, 30)))
+
+        assertEquals(30, forecast.peakWithin(5))
+        assertEquals(0, forecast.peakWithin(0))
+        assertEquals(0, RainForecast(null, emptyList()).peakWithin(2))
+    }
+
 }

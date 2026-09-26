@@ -24,6 +24,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.manish.ridedash.data.RideState
+import com.manish.ridedash.data.weather.RainForecast
 import com.manish.ridedash.ui.theme.GpsStale
 import com.manish.ridedash.ui.theme.Warn
 import com.manish.ridedash.ui.theme.labelStyle
@@ -38,7 +39,7 @@ import java.util.Calendar
  * watch/Bluetooth/battery group on the right. Nothing here needs a glance longer than a moment.
  */
 @Composable
-fun StatusBar(state: RideState, modifier: Modifier = Modifier) {
+fun StatusBar(state: RideState, nowMs: Long = 0L, modifier: Modifier = Modifier) {
     val colors = rideColors
     Box(
         modifier = modifier
@@ -68,6 +69,28 @@ fun StatusBar(state: RideState, modifier: Modifier = Modifier) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
+            // Rain lives here as well as on the cruising tile, because the tile is invisible the
+            // moment a route starts — which is exactly when you are furthest from shelter.
+            val rain = state.rain
+            if (rain != null && !rain.staleAt(nowMs)) {
+                // Shown even at 4%, deliberately. Hiding a low number saves a little clutter and
+                // costs the one thing that matters more: being able to tell "no rain coming" apart
+                // from "the forecast is broken". Accent is what marks it worth acting on.
+                val soon = rain.peakWithin(RainForecast.SOON_HOURS)
+                val wet = soon >= RainForecast.WET
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    RainDropIcon(color = if (wet) colors.accent else colors.sub, size = 16.dp)
+                    Text(
+                        text = "$soon%",
+                        style = numberStyle(20.sp, FontWeight.Bold),
+                        color = if (wet) colors.accent else colors.sub,
+                    )
+                }
+            }
+
             if (state.hot) {
                 Text(
                     text = "${Formatters.batteryTemp(state.batteryTempC)} ▲",

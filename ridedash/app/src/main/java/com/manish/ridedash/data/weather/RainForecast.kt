@@ -17,6 +17,14 @@ data class RainForecast(
     /** The worst hour in the window — what the tile shouts about. */
     val peakChance: Int get() = hours.maxOfOrNull { it.chancePercent } ?: 0
 
+    /**
+     * The worst chance within the next [hours] hours. The five-hour view is for planning; the next
+     * hour or two is what decides whether you pull over now.
+     */
+    fun peakWithin(hours: Int): Int = hours.takeIf { it > 0 }
+        ?.let { this.hours.take(it).maxOfOrNull { hour -> hour.chancePercent } }
+        ?: 0
+
     /** The first hour that crosses [WET], or null when the window stays dry. */
     val firstWetHour: RainHour? get() = hours.firstOrNull { it.chancePercent >= WET }
 
@@ -27,6 +35,9 @@ data class RainForecast(
     companion object {
         /** Above this a rider would want to know. Below it, rain is noise. */
         const val WET = 40
+
+        /** The horizon the status bar reports on: near enough that you would act on it. */
+        const val SOON_HOURS = 2
 
         /** Past this the forecast stops being worth trusting on screen. */
         const val STALE_AFTER_MS = 90 * 60 * 1000L

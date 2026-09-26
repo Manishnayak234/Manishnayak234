@@ -80,6 +80,7 @@ app/src/main/java/com/manish/ridedash/
   data/RideRepository.kt       StateFlow<RideState>, the one source of truth
   data/sensors/                location, lean, heading, barometer, light, battery, Bluetooth
   data/weather/                rain forecast: Open-Meteo fetch and its parser
+  data/OverspeedGate.kt        the 80 km/h warning, with hysteresis
   data/settings/               DataStore: lean zero, overlay position, triggers, last ride
   nav/                         MapsParser, progress tracking, watch turn alerts
   util/                        formatting, setup checks, notification channels
@@ -101,6 +102,7 @@ overlay only read it.
 | 6 | Watch turn alerts on their own channel | done |
 | 7 | Dashboard mode: pinning, Hold to exit, NFC and charger triggers, onboarding | done |
 | 9 | Rain forecast for the next five hours | done, fetching live on the phone |
+| 11 | "Slow down buddy" over 80 km/h | done — **red state never seen; needs a ride** |
 | 10 | Power-on gauge sweep, as a cluster does | done |
 | 8 | Polish: heat warning, ride stats, persisted trip data | heat warning and stats done; full trip history is v2 |
 
@@ -170,9 +172,30 @@ has moved about 15 km, and once immediately on the first GPS fix; mobile data on
 Android stubs `org.json` in JVM unit tests, so the real implementation is on the **test** classpath
 only (`testImplementation(libs.org.json)`). It is not in the APK.
 
-The tile is on the cruising screen only. The navigating panel has no room for it at 361 dp, so rain
-is invisible while a route is running — a status-bar warning that appears only above the threshold
-would fix that, and is not built.
+The tile is on the cruising screen only — the navigating panel has no room for it at 361 dp — so the
+**status bar carries the next two hours** on every screen: a droplet and a percentage, grey until it
+reaches 40% and accent above. It is shown even at 4%, deliberately: hiding a low number saves a
+little clutter and costs the ability to tell "no rain coming" apart from "the forecast is broken".
+That confusion cost real time once already. The indicator disappears entirely once the forecast goes
+stale rather than presenting old numbers as current.
+
+The forecast call runs in its own coroutine, never on the service tick. Awaiting it inline stalled
+the one-second tick for as long as the request hung, which is worst exactly where a rider has no
+signal — and a dropped GPS fix would not have greyed out until it returned.
+
+## Over 80
+
+The speed number, the gauge arc and the line under the gauge all turn red together, and that line
+becomes SLOW DOWN BUDDY. The warning takes the trip line's place rather than adding a banner: same
+spot, no layout shift, and nothing new covering the turn arrow. It reaches the split-screen layout
+and the floating box over Maps too, since that box is the only speed visible with the map up.
+
+`OverspeedGate` holds it on from 80 km/h down to 76 rather than switching on one number. A bare
+comparison would strobe the screen every time the throttle breathed at the limit, and a warning that
+blinks is one you stop reading. A speed the app does not trust never trips it, and losing the fix
+clears a warning already up.
+
+It is suppressed during the power-on sweep, which runs to 180 by design.
 
 ## Screen sizes
 

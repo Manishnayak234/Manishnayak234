@@ -48,6 +48,12 @@ class MainActivity : ComponentActivity() {
 
     private lateinit var settings: RideSettings
 
+    /**
+     * True from entering dashboard mode until the power-on sweep has finished. Screen pinning waits
+     * for it, because the two dialogs Android puts up cover the sweep completely.
+     */
+    private val sweepPending = MutableStateFlow(false)
+
     private val screen = MutableStateFlow(Screen.SETUP)
     private val setupItems = MutableStateFlow<List<SetupChecks.Item>>(emptyList())
     private val startEnabled = MutableStateFlow(false)
@@ -91,14 +97,31 @@ class MainActivity : ComponentActivity() {
             val sweep = remember { Animatable(0f) }
             var sweeping by remember { mutableStateOf(false) }
 
+            // Entering dashboard mode puts two system dialogs on top of us — the pinning prompt and
+            // the "app is pinned" notice — and they cover the gauge completely.
+            //
+            // Waiting for window focus was the obvious answer and it does not work on this phone: a
+            // vivo SystemUI window holds the focus, so onWindowFocusChanged never fires at all. So
+            // the order is reversed instead. The sweep runs first, on a clear screen, and pinning
+            // only starts once it has finished. Three seconds unpinned at the start of a ride costs
+            // nothing; a sweep nobody sees is the whole feature wasted.
             LaunchedEffect(dashboardActive) {
                 if (!dashboardActive) return@LaunchedEffect
-                sweeping = true
-                sweep.snapTo(0f)
-                sweep.animateTo(MAX_SCALE_KMH, tween(SWEEP_UP_MS, easing = FastOutSlowInEasing))
-                kotlinx.coroutines.delay(SWEEP_HOLD_MS)
-                sweep.animateTo(0f, tween(SWEEP_DOWN_MS, easing = FastOutSlowInEasing))
-                sweeping = false
+                Log.i(TAG, "Sweep starting")
+                try {
+                    sweeping = true
+                    sweep.snapTo(0f)
+                    sweep.animateTo(MAX_SCALE_KMH, tween(SWEEP_UP_MS, easing = FastOutSlowInEasing))
+                    kotlinx.coroutines.delay(SWEEP_HOLD_MS)
+                    sweep.animateTo(0f, tween(SWEEP_DOWN_MS, easing = FastOutSlowInEasing))
+                } finally {
+                    // Runs on cancellation too, so a gauge frozen mid-sweep cannot be left behind
+                    // and pinning is never skipped because the rider left early.
+                    sweeping = false
+                    sweepPending.value = false
+                    Log.i(TAG, "Sweep finished; pinning now")
+                    if (RideRepository.dashboardActive.value) pinScreen()
+                }
             }
 
             val sweepKmh = if (sweeping) sweep.value else null
@@ -212,10 +235,14 @@ class MainActivity : ComponentActivity() {
         DashboardService.start(this)
         TriggerService.start(this)
         screen.value = Screen.DASHBOARD
+        // Claimed before pinScreen() so the sweep gets a clear screen; the sweep releases it and
+        // pins once it is done.
+        sweepPending.value = true
         pinScreen()
     }
 
     private fun exitDashboard() {
+        sweepPending.value = false
         runCatching { stopLockTask() }
         DashboardService.stop(this)
         screen.value = Screen.SETUP
@@ -266,6 +293,11 @@ class MainActivity : ComponentActivity() {
      * failure is only logged.
      */
     private fun pinScreen() {
+        if (sweepPending.value) {
+            Log.i(TAG, "pinScreen deferred: sweep still running")
+            return
+        }
+        Log.i(TAG, "pinScreen: starting lock task")
         // Android refuses lock task in split screen, and asking anyway throws. Sharing the screen
         // with Maps is a deliberate choice, so the pinning is simply skipped for as long as it lasts.
         if (isInMultiWindowMode) {
@@ -322,6 +354,7 @@ class MainActivity : ComponentActivity() {
          * Paced like a real cluster: a deliberate climb, a beat at the top, then a slower fall. The
          * first pass at 850/700 ms read as a flicker rather than a sweep.
          */
+        private const val SWEEP_SETTLE_MS = 300L
         private const val SWEEP_UP_MS = 1400
         private const val SWEEP_HOLD_MS = 180L
         private const val SWEEP_DOWN_MS = 1200

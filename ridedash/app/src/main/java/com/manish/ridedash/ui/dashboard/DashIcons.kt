@@ -245,3 +245,21 @@ private fun DrawScope.drawTurnArrow(color: Color) {
     }
     drawPath(head, color)
 }
+
+/** A plain droplet for the status bar's rain warning. Solid, because a hollow one disappears in sun. */
+@Composable
+fun RainDropIcon(color: Color, size: Dp = 18.dp, modifier: Modifier = Modifier) {
+    Canvas(modifier.size(size)) {
+        val w = this.size.width
+        val h = this.size.height
+        val path = Path().apply {
+            moveTo(w * 0.5f, h * 0.06f)
+            cubicTo(w * 0.5f, h * 0.06f, w * 0.94f, h * 0.55f, w * 0.94f, h * 0.68f)
+            cubicTo(w * 0.94f, h * 0.90f, w * 0.75f, h * 0.98f, w * 0.5f, h * 0.98f)
+            cubicTo(w * 0.25f, h * 0.98f, w * 0.06f, h * 0.90f, w * 0.06f, h * 0.68f)
+            cubicTo(w * 0.06f, h * 0.55f, w * 0.5f, h * 0.06f, w * 0.5f, h * 0.06f)
+            close()
+        }
+        drawPath(path, color)
+    }
+}

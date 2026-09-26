@@ -53,6 +53,7 @@ fun DashboardScreen(
             CompactDashboard(
                 state = state,
                 sweepKmh = sweepKmh,
+                nowMs = nowMs,
                 onExit = onExit,
                 brightness = brightness,
                 onBrightnessChange = onBrightnessChange,
@@ -65,7 +66,7 @@ fun DashboardScreen(
                 .fillMaxSize()
                 .background(colors.bg),
         ) {
-            StatusBar(state)
+            StatusBar(state, nowMs)
 
             Row(modifier = Modifier.weight(1f)) {
                 Box(
@@ -85,6 +86,8 @@ fun DashboardScreen(
                     SpeedGauge(
                         speedKmh = sweepKmh ?: state.speedKmh,
                         speedValid = sweepKmh != null || (state.speedValid && state.gpsFix),
+                        // Never during the power-on sweep: it runs to 180 by design.
+                        overspeed = sweepKmh == null && state.overspeed,
                         tripLine = "${Formatters.tripKm(state.tripKm)} · ${Formatters.rideTime(state.rideTimeMs)}",
                     )
                 }

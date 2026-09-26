@@ -33,6 +33,7 @@ import com.manish.ridedash.data.RideRepository
 import com.manish.ridedash.data.RideState
 import com.manish.ridedash.ui.theme.RideDashTheme
 import com.manish.ridedash.ui.theme.numberStyle
+import com.manish.ridedash.ui.theme.Warn
 import com.manish.ridedash.ui.theme.rideColors
 import com.manish.ridedash.util.Formatters
 import kotlin.math.roundToInt
@@ -143,7 +144,7 @@ private fun SpeedBox(
             .shadow(12.dp, RoundedCornerShape(22.dp))
             .clip(RoundedCornerShape(22.dp))
             .background(colors.bg)
-            .border(3.dp, colors.accent, RoundedCornerShape(22.dp))
+            .border(3.dp, if (state.overspeed) Warn else colors.accent, RoundedCornerShape(22.dp))
             .pointerInput(Unit) {
                 detectDragGestures(
                     onDragEnd = onDragEnd,
@@ -162,7 +163,7 @@ private fun SpeedBox(
             Text(
                 text = Formatters.speed(state.speedKmh, state.speedValid && state.gpsFix),
                 style = numberStyle(72.sp, FontWeight.ExtraBold, italic = true),
-                color = colors.fg,
+                color = if (state.overspeed) Warn else colors.fg,
             )
             Text(
                 text = "km/h",
