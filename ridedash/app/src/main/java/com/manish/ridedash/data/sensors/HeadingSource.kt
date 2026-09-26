@@ -5,6 +5,9 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.os.Build
+import android.view.Surface
+import android.view.WindowManager
 import com.manish.ridedash.data.RideRepository
 
 /**
@@ -12,7 +15,7 @@ import com.manish.ridedash.data.RideRepository
  * [LocationSource.HEADING_FROM_GPS_KMH] the GPS bearing is better, so this source stays quiet and
  * lets the location stream own the value.
  */
-class HeadingSource(context: Context) : SensorEventListener {
+class HeadingSource(private val context: Context) : SensorEventListener {
 
     private val sensorManager =
         context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
@@ -20,6 +23,15 @@ class HeadingSource(context: Context) : SensorEventListener {
         sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
 
     private var smoothedDeg: Float? = null
+
+    @Suppress("DEPRECATION")
+    private fun displayRotation(): Int = runCatching {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            context.display?.rotation
+        } else {
+            (context.getSystemService(Context.WINDOW_SERVICE) as WindowManager).defaultDisplay.rotation
+        }
+    }.getOrNull() ?: Surface.ROTATION_0
 
     fun start() {
         val target = sensor ?: return
@@ -36,9 +48,10 @@ class HeadingSource(context: Context) : SensorEventListener {
         val state = RideRepository.state.value
         if (state.speedKmh > LocationSource.HEADING_FROM_GPS_KMH) return
 
-        val (azimuth, _, _) = OrientationMath.orientationDeg(event.values)
+        val azimuth = OrientationMath.headingDeg(event.values, displayRotation())
         smoothedDeg = smoothAngle(smoothedDeg, azimuth)
         RideRepository.update { it.copy(headingDeg = smoothedDeg) }
+
     }
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit

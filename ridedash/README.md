@@ -146,7 +146,14 @@ notification, the overlay, pinning — has been exercised against real hardware.
   also blocks split screen, vivo's Small Window, and any other app being launched — a pinned app
   refuses those with `START_RETURN_LOCK_TASK_MODE_VIOLATION`. Pinning is skipped automatically in
   split screen for that reason.
-- **Lean sign.** If lean reads mirrored in the real mount, flip `LeanSource.LEAN_SIGN` to `-1f`. Zero
+- **Heading is read off the back of the phone, not its top.** Confirmed correct in the mount. It only
+  applies below 5 km/h — above that `LocationSource` hands over to the GPS bearing — and a phone
+  lying flat deliberately falls back to the top-edge reading, so heading behaves differently on a
+  bench than on the bars. If it ever reads consistently 90° or 180° out, the axis sign in
+  `OrientationMath.headingDeg` is the thing to flip; if it wanders, calibrate the magnetometer and
+  suspect the mount or the bike's electrics before the code.
+- **Lean sign.** Confirmed correct in the mount. If lean ever reads mirrored, flip
+  `LeanSource.LEAN_SIGN` to `-1f`. Zero
   it with a long press on the LEAN tile while the bike is upright — and remember a bar-mounted phone
   turns with the steering, so lean is approximate by construction.
 - **Screen pinning and Maps.** Pinning is what stops a glove or a pocket leaving the dashboard, and it
