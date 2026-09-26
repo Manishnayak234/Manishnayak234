@@ -1,6 +1,7 @@
 package com.manish.ridedash.data
 
 import android.graphics.Bitmap
+import com.manish.ridedash.data.weather.RainForecast
 
 /** Everything the dashboard draws, in one immutable snapshot. */
 data class RideState(
@@ -31,6 +32,8 @@ data class RideState(
      * enabled. The goBoult app has no SDK, so the real watch link cannot be read.
      */
     val watchAlertsArmed: Boolean = false,
+    /** Next few hours of rain, or null until the first forecast lands. */
+    val rain: RainForecast? = null,
     val nav: NavState? = null,
 ) {
     val navigating: Boolean get() = nav != null

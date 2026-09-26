@@ -10,7 +10,13 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.core.view.WindowCompat
@@ -24,6 +30,7 @@ import com.manish.ridedash.nav.MapsParser
 import com.manish.ridedash.service.DashboardService
 import com.manish.ridedash.service.TriggerService
 import com.manish.ridedash.ui.dashboard.DashboardScreen
+import com.manish.ridedash.ui.dashboard.MAX_SCALE_KMH
 import com.manish.ridedash.ui.onboarding.OnboardingScreen
 import com.manish.ridedash.ui.stats.RideStatsScreen
 import com.manish.ridedash.ui.theme.RideDashTheme
@@ -76,6 +83,34 @@ class MainActivity : ComponentActivity() {
 
             LaunchedEffect(brightness) { applyBrightness(brightness) }
 
+            // The needle sweep a real cluster does at power-on: all the way round and back, so you
+            // can see at a glance that the gauge is alive before you trust the number on it.
+            // Held here rather than inside DashboardScreen so that ducking into the ride stats and
+            // back does not replay it — it should happen once, when the dashboard takes the screen.
+            val dashboardActive by RideRepository.dashboardActive.collectAsStateWithLifecycle()
+            val sweep = remember { Animatable(0f) }
+            var sweeping by remember { mutableStateOf(false) }
+
+            LaunchedEffect(dashboardActive) {
+                if (!dashboardActive) return@LaunchedEffect
+                sweeping = true
+                sweep.snapTo(0f)
+                sweep.animateTo(MAX_SCALE_KMH, tween(SWEEP_UP_MS, easing = FastOutSlowInEasing))
+                kotlinx.coroutines.delay(SWEEP_HOLD_MS)
+                sweep.animateTo(0f, tween(SWEEP_DOWN_MS, easing = FastOutSlowInEasing))
+                sweeping = false
+            }
+
+            val sweepKmh = if (sweeping) sweep.value else null
+
+            // A slow clock, only so the rain tile can grey out a forecast that has gone stale.
+            val nowMs by produceState(System.currentTimeMillis()) {
+                while (true) {
+                    value = System.currentTimeMillis()
+                    kotlinx.coroutines.delay(60_000L)
+                }
+            }
+
             RideDashTheme(night = state.night) {
                 when (current) {
                     Screen.SETUP -> OnboardingScreen(
@@ -88,6 +123,8 @@ class MainActivity : ComponentActivity() {
 
                     Screen.DASHBOARD -> DashboardScreen(
                         state = state,
+                        sweepKmh = sweepKmh,
+                        nowMs = nowMs,
                         onMap = ::openMaps,
                         onRideStats = { screen.value = Screen.STATS },
                         onExit = ::exitDashboard,
@@ -280,5 +317,13 @@ class MainActivity : ComponentActivity() {
 
         /** Used by the NFC tag, the charger trigger, the tile and the service notification. */
         const val ACTION_START_DASHBOARD = "com.manish.ridedash.START_DASHBOARD"
+
+        /**
+         * Paced like a real cluster: a deliberate climb, a beat at the top, then a slower fall. The
+         * first pass at 850/700 ms read as a flicker rather than a sweep.
+         */
+        private const val SWEEP_UP_MS = 1400
+        private const val SWEEP_HOLD_MS = 180L
+        private const val SWEEP_DOWN_MS = 1200
     }
 }

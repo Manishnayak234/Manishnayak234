@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -33,7 +35,8 @@ import com.manish.ridedash.ui.theme.rideColors
 import com.manish.ridedash.util.Formatters
 
 /**
- * The right panel with no route running (screen 4.2): heading and lean. A long press on the lean
+ * The right panel with no route running (screen 4.2): heading, lean and the rain ahead. A long
+ * press on the lean
  * tile zeroes the lean angle with the bike upright. The brightness strip beside it belongs to
  * [DashboardScreen], so it stays put when a route starts and this panel is swapped out.
  *
@@ -44,18 +47,35 @@ import com.manish.ridedash.util.Formatters
 fun CruisingPanel(
     state: RideState,
     onCalibrateLean: () -> Unit,
+    nowMs: Long,
     modifier: Modifier = Modifier,
 ) {
-    Row(
+    Column(
         modifier = modifier
             .fillMaxHeight()
             .padding(vertical = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        HeadingTile(state, Modifier.weight(1f))
-        LeanTile(state, onCalibrateLean, Modifier.weight(1f))
+        Row(
+            modifier = Modifier.weight(1f),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            HeadingTile(state, Modifier.weight(1f))
+            LeanTile(state, onCalibrateLean, Modifier.weight(1f))
+        }
+        // Wide and short: the rain bars want horizontal room, not height.
+        RainTile(
+            rain = state.rain,
+            nowMs = nowMs,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(RAIN_TILE_HEIGHT),
+        )
     }
 }
+
+/** Enough for the label, the headline and a row of bars, and no more. */
+private val RAIN_TILE_HEIGHT = 96.dp
 
 @Composable
 private fun HeadingTile(state: RideState, modifier: Modifier = Modifier) {
@@ -174,6 +194,7 @@ private fun CruisingPanelPreview() {
                 avgSpeedKmh = 41f,
             ),
             onCalibrateLean = {},
+            nowMs = 0L,
         )
     }
 }

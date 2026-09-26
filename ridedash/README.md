@@ -69,6 +69,7 @@ app/src/main/java/com/manish/ridedash/
   ui/dashboard/                gauge, status bar, bottom bar, the two panels, drawn icons
     BrightnessSlider.kt        the brightness strip, on every dashboard layout
     CompactDashboard.kt        the half-width layout used in split screen
+    RainTile.kt                rain for the next five hours, on the cruising screen
   ui/onboarding/               the setup checklist
   ui/stats/                    ride stats (v1: this ride and the last one)
   service/DashboardService.kt  foreground service: location, sensors, overlay, watch alerts
@@ -78,6 +79,7 @@ app/src/main/java/com/manish/ridedash/
   overlay/SpeedOverlay.kt      the draggable speed box drawn over Google Maps
   data/RideRepository.kt       StateFlow<RideState>, the one source of truth
   data/sensors/                location, lean, heading, barometer, light, battery, Bluetooth
+  data/weather/                rain forecast: Open-Meteo fetch and its parser
   data/settings/               DataStore: lean zero, overlay position, triggers, last ride
   nav/                         MapsParser, progress tracking, watch turn alerts
   util/                        formatting, setup checks, notification channels
@@ -98,6 +100,8 @@ overlay only read it.
 | 5b | Split screen: compact dashboard beside Google Maps | done |
 | 6 | Watch turn alerts on their own channel | done |
 | 7 | Dashboard mode: pinning, Hold to exit, NFC and charger triggers, onboarding | done |
+| 9 | Rain forecast for the next five hours | done, fetching live on the phone |
+| 10 | Power-on gauge sweep, as a cluster does | done |
 | 8 | Polish: heat warning, ride stats, persisted trip data | heat warning and stats done; full trip history is v2 |
 
 ## What has been checked, and what has not
@@ -150,6 +154,25 @@ notification, the overlay, pinning — has been exercised against real hardware.
   brightness on, so leave it on.
 - **Heat.** Battery temperature is shown in the status bar once it passes 45 °C. In direct sun, a hood
   over the phone matters more than anything in software.
+
+## Rain
+
+The only forecast worth a glance from a saddle is whether it is about to rain, so that is all this
+shows: the first hour that crosses 40%, in accent, with five hourly bars behind it and the current
+temperature. `DRY` when the window stays clear, and the whole tile greys out once the forecast is
+over 90 minutes old rather than quietly presenting stale numbers as current.
+
+It comes from **Open-Meteo**, which needs no API key, no cloud project and no billing account — the
+whole feature is a URL and a parser, so there is no HTTP or JSON dependency in the app. `INTERNET` is
+the only permission it added. A request goes out when the last one ages past 30 minutes or the bike
+has moved about 15 km, and once immediately on the first GPS fix; mobile data on a ride is not free.
+
+Android stubs `org.json` in JVM unit tests, so the real implementation is on the **test** classpath
+only (`testImplementation(libs.org.json)`). It is not in the APK.
+
+The tile is on the cruising screen only. The navigating panel has no room for it at 361 dp, so rain
+is invisible while a route is running — a status-bar warning that appears only above the threshold
+would fix that, and is not built.
 
 ## Screen sizes
 

@@ -47,6 +47,7 @@ import com.manish.ridedash.util.Formatters
 @Composable
 fun CompactDashboard(
     state: RideState,
+    sweepKmh: Float? = null,
     onExit: () -> Unit,
     brightness: Float,
     onBrightnessChange: (Float) -> Unit,
@@ -76,7 +77,10 @@ fun CompactDashboard(
 
                 Row(verticalAlignment = Alignment.Bottom) {
                     Text(
-                        text = Formatters.speed(state.speedKmh, state.speedValid && state.gpsFix),
+                        text = Formatters.speed(
+                            sweepKmh ?: state.speedKmh,
+                            sweepKmh != null || (state.speedValid && state.gpsFix),
+                        ),
                         style = numberStyle(96.sp, FontWeight.ExtraBold, italic = true),
                         color = colors.fg,
                         maxLines = 1,

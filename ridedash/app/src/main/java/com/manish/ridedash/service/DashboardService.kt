@@ -20,6 +20,7 @@ import com.manish.ridedash.data.sensors.LeanSource
 import com.manish.ridedash.data.sensors.LightSource
 import com.manish.ridedash.data.sensors.LocationSource
 import com.manish.ridedash.data.settings.RideSettings
+import com.manish.ridedash.data.weather.WeatherSource
 import com.manish.ridedash.nav.TurnAlerts
 import com.manish.ridedash.overlay.SpeedOverlay
 import com.manish.ridedash.util.Notifications
@@ -45,7 +46,11 @@ class DashboardService : LifecycleService() {
     private lateinit var settings: RideSettings
 
     private val baro by lazy { BaroSource(this) }
-    private val location by lazy { LocationSource(this, baro::onGpsAltitude) }
+    private val location by lazy { LocationSource(this, baro::onGpsAltitude, ::onPosition) }
+    private val weather = WeatherSource()
+
+    @Volatile private var lastLatitude: Double? = null
+    @Volatile private var lastLongitude: Double? = null
     private val lean by lazy { LeanSource(this) }
     private val heading by lazy { HeadingSource(this) }
     private val light by lazy { LightSource(this) }
@@ -155,10 +160,32 @@ class DashboardService : LifecycleService() {
             while (true) {
                 location.checkStale(System.currentTimeMillis())
                 if (tick % BLUETOOTH_EVERY_TICKS == 0) bluetooth.refresh()
+                if (tick % WEATHER_EVERY_TICKS == 0) refreshWeatherIfDue()
                 tick++
                 delay(TICK_MS)
             }
         }
+    }
+
+    private fun onPosition(latitude: Double, longitude: Double) {
+        val first = lastLatitude == null
+        lastLatitude = latitude
+        lastLongitude = longitude
+        // The periodic check is a minute apart, which is far too long to stare at an empty tile at
+        // the start of a ride. The first fix asks straight away.
+        if (first) lifecycleScope.launch { refreshWeatherIfDue() }
+    }
+
+    /**
+     * Asks for rain only once there is a fix to ask about, and only when [WeatherSource] says the
+     * last answer has aged out or the bike has moved somewhere the forecast could differ.
+     */
+    private suspend fun refreshWeatherIfDue() {
+        val latitude = lastLatitude ?: return
+        val longitude = lastLongitude ?: return
+        val now = System.currentTimeMillis()
+        if (!weather.due(latitude, longitude, now)) return
+        weather.refresh(latitude, longitude, now)
     }
 
     private fun launchUnplugWatchdog(): Job = lifecycleScope.launch {
@@ -282,6 +309,9 @@ class DashboardService : LifecycleService() {
 
         private const val TICK_MS = 1_000L
         private const val BLUETOOTH_EVERY_TICKS = 5
+
+        /** A minute between checks; WeatherSource decides whether a request actually goes out. */
+        private const val WEATHER_EVERY_TICKS = 60
         private const val STILL_KMH = 3f
         private const val UNPLUG_EXIT_AFTER_MS = 2 * 60_000L
 

@@ -34,6 +34,8 @@ class LocationSource(
     private val context: Context,
     /** GPS altitude, used to keep the barometer honest. */
     private val onGpsAltitude: (altitudeM: Float, accuracyM: Float) -> Unit = { _, _ -> },
+    /** Where we are, for the rain forecast. Not in RideState: nothing on screen draws a position. */
+    private val onPosition: (latitude: Double, longitude: Double) -> Unit = { _, _ -> },
 ) {
 
     private val locationManager =
@@ -172,6 +174,8 @@ class LocationSource(
         if (location.hasAltitude()) {
             onGpsAltitude(location.altitude.toFloat(), accuracyM)
         }
+
+        onPosition(location.latitude, location.longitude)
     }
 
     /**

@@ -15,6 +15,9 @@
     <string name="brightness_auto_short">AUTO</string>
     <string name="brightness_auto_button">A</string>
     <string name="tile_heading">HEADING</string>
+    <string name="tile_rain">RAIN NEXT HOURS</string>
+    <string name="rain_dry">DRY</string>
+    <string name="rain_waiting">\u2014</string>
     <string name="tile_lean">LEAN</string>
 
     <!-- Navigating panel -->

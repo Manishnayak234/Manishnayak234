@@ -32,6 +32,10 @@ import com.manish.ridedash.util.Formatters
 @Composable
 fun DashboardScreen(
     state: RideState,
+    /** Non-null while the power-on sweep is running, and it drives the gauge instead of the GPS. */
+    sweepKmh: Float? = null,
+    /** Ticks slowly, only so the rain tile can tell a fresh forecast from a stale one. */
+    nowMs: Long = 0L,
     onMap: () -> Unit,
     onRideStats: () -> Unit,
     onExit: () -> Unit,
@@ -48,6 +52,7 @@ fun DashboardScreen(
         if (maxWidth < COMPACT_WIDTH) {
             CompactDashboard(
                 state = state,
+                sweepKmh = sweepKmh,
                 onExit = onExit,
                 brightness = brightness,
                 onBrightnessChange = onBrightnessChange,
@@ -78,8 +83,8 @@ fun DashboardScreen(
                     contentAlignment = Alignment.Center,
                 ) {
                     SpeedGauge(
-                        speedKmh = state.speedKmh,
-                        speedValid = state.speedValid && state.gpsFix,
+                        speedKmh = sweepKmh ?: state.speedKmh,
+                        speedValid = sweepKmh != null || (state.speedValid && state.gpsFix),
                         tripLine = "${Formatters.tripKm(state.tripKm)} · ${Formatters.rideTime(state.rideTimeMs)}",
                     )
                 }
@@ -95,6 +100,7 @@ fun DashboardScreen(
                     CruisingPanel(
                         state = state,
                         onCalibrateLean = onCalibrateLean,
+                        nowMs = nowMs,
                         modifier = Modifier.weight(1f),
                     )
                 }

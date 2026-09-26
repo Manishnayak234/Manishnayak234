@@ -85,4 +85,30 @@ object Formatters {
 
     fun batteryTemp(tempC: Float?): String =
         if (tempC == null) PLACEHOLDER else String.format(Locale.US, "%.0f°C", tempC)
+    /** "27°" — whole degrees, because half a degree never changed a decision on a bike. */
+    fun temperature(celsius: Float?): String =
+        if (celsius == null) PLACEHOLDER else "${celsius.roundToInt()}\u00b0"
+
+    /** "6 PM" for the headline, where there is room for it. */
+    fun hourLabel(hourOfDay: Int): String {
+        val h = ((hourOfDay % 24) + 24) % 24
+        val suffix = if (h < 12) "AM" else "PM"
+        val display = when (h % 12) {
+            0 -> 12
+            else -> h % 12
+        }
+        return "$display $suffix"
+    }
+
+    /** "6p" under a bar, where there is not. */
+    fun hourShort(hourOfDay: Int): String {
+        val h = ((hourOfDay % 24) + 24) % 24
+        val suffix = if (h < 12) "a" else "p"
+        val display = when (h % 12) {
+            0 -> 12
+            else -> h % 12
+        }
+        return "$display$suffix"
+    }
+
 }
