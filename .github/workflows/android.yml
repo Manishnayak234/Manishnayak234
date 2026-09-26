@@ -61,7 +61,14 @@ jobs:
         working-directory: ridedash
         run: |
           report=$(find app/build -name 'lint-results-debug.txt' | head -n 1)
-          if [ -n "$report" ]; then cat "$report"; else echo "no lint text report found"; fi
+          if [ -z "$report" ]; then echo "no lint text report found"; exit 0; fi
+          echo "=== errors ==="
+          grep -B1 -A3 ': Error:' "$report" || echo "none"
+          echo
+          echo "=== warning counts by type ==="
+          grep -oE '\[[A-Za-z]+\]$' "$report" | sort | uniq -c | sort -rn
+          echo
+          echo "The whole report is in the ridedash-reports artifact."
 
       - name: Upload the lint and test reports
         if: always()

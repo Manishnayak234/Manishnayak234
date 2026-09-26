@@ -155,7 +155,14 @@ class RecordingController(private val context: Context) {
             .build()
 
         var pending = capture.output.prepareRecording(context, output)
-        if (withAudio && hasPermission(Manifest.permission.RECORD_AUDIO)) {
+        // The check is spelled out here rather than behind the helper below, because lint reads the
+        // call site and not through a function -- and it is right to insist: this is the call that
+        // throws if the microphone was never granted.
+        val microphoneGranted = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.RECORD_AUDIO,
+        ) == PackageManager.PERMISSION_GRANTED
+        if (withAudio && microphoneGranted) {
             pending = runCatching { pending.withAudioEnabled() }
                 .onFailure { Log.w(TAG, "Carrying on without audio", it) }
                 .getOrDefault(pending)
