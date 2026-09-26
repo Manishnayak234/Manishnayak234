@@ -95,6 +95,7 @@ class MainActivity : ComponentActivity() {
             // back does not replay it — it should happen once, when the dashboard takes the screen.
             val dashboardActive by RideRepository.dashboardActive.collectAsStateWithLifecycle()
             val sweep = remember { Animatable(0f) }
+            val intro = remember { Animatable(1f) }
             var sweeping by remember { mutableStateOf(false) }
 
             // Entering dashboard mode puts two system dialogs on top of us — the pinning prompt and
@@ -109,15 +110,23 @@ class MainActivity : ComponentActivity() {
                 if (!dashboardActive) return@LaunchedEffect
                 Log.i(TAG, "Sweep starting")
                 try {
+                    intro.snapTo(0f)
                     sweeping = true
                     sweep.snapTo(0f)
                     sweep.animateTo(MAX_SCALE_KMH, tween(SWEEP_UP_MS, easing = FastOutSlowInEasing))
                     kotlinx.coroutines.delay(SWEEP_HOLD_MS)
                     sweep.animateTo(0f, tween(SWEEP_DOWN_MS, easing = FastOutSlowInEasing))
-                } finally {
-                    // Runs on cancellation too, so a gauge frozen mid-sweep cannot be left behind
-                    // and pinning is never skipped because the rider left early.
                     sweeping = false
+                    // The badge does not cut away. Its bike shrinks and slides into the band while
+                    // the dashboard fades up underneath, so the big drawing and the small one read
+                    // as one object being set down rather than two being swapped.
+                    intro.animateTo(1f, tween(MORPH_MS, easing = FastOutSlowInEasing))
+                } finally {
+                    // Runs on cancellation too, so a gauge frozen mid-sweep cannot be left behind,
+                    // the badge cannot be stranded on screen, and pinning is never skipped because
+                    // the rider left early.
+                    sweeping = false
+                    if (intro.value < 1f) intro.snapTo(1f)
                     sweepPending.value = false
                     Log.i(TAG, "Sweep finished; pinning now")
                     if (RideRepository.dashboardActive.value) pinScreen()
@@ -147,6 +156,7 @@ class MainActivity : ComponentActivity() {
                     Screen.DASHBOARD -> DashboardScreen(
                         state = state,
                         sweepKmh = sweepKmh,
+                        introProgress = intro.value,
                         nowMs = nowMs,
                         onMap = ::openMaps,
                         onRideStats = { screen.value = Screen.STATS },
@@ -358,5 +368,8 @@ class MainActivity : ComponentActivity() {
         private const val SWEEP_UP_MS = 1400
         private const val SWEEP_HOLD_MS = 180L
         private const val SWEEP_DOWN_MS = 1200
+
+        /** Long enough to follow the bike across, short enough not to delay the dashboard. */
+        private const val MORPH_MS = 750
     }
 }

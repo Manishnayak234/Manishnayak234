@@ -5,6 +5,7 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import com.manish.ridedash.data.LeanCheerGate
 import com.manish.ridedash.data.RideRepository
 import kotlin.math.abs
 
@@ -21,6 +22,8 @@ class LeanSource(
     /** Zero offset from the last calibration, in degrees. */
     private var zeroOffsetDeg: Float = 0f,
 ) : SensorEventListener {
+
+    private val cheer = LeanCheerGate()
 
     private val sensorManager =
         context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
@@ -79,9 +82,11 @@ class LeanSource(
         filteredDeg = smoothed
 
         val rounded = smoothed.coerceIn(-MAX_PLAUSIBLE_DEG, MAX_PLAUSIBLE_DEG)
+        val cheered = cheer.update(rounded, System.currentTimeMillis())
         RideRepository.update { state ->
             state.copy(
                 leanDeg = rounded,
+                leanCheer = cheered,
                 leanMaxLeftDeg = if (rounded < 0f) maxOf(state.leanMaxLeftDeg, abs(rounded))
                 else state.leanMaxLeftDeg,
                 leanMaxRightDeg = if (rounded > 0f) maxOf(state.leanMaxRightDeg, rounded)

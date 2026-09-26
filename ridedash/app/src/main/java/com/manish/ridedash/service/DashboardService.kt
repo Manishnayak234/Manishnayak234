@@ -1,8 +1,10 @@
 package com.manish.ridedash.service
 
 import android.Manifest
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.os.Build
@@ -11,6 +13,10 @@ import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.lifecycleScope
+import com.manish.ridedash.BuildConfig
+import com.manish.ridedash.data.DebugSpeed
+import com.manish.ridedash.data.OverspeedGate
+import com.manish.ridedash.data.SweetSpotGate
 import com.manish.ridedash.data.RideRepository
 import com.manish.ridedash.data.sensors.BaroSource
 import com.manish.ridedash.data.sensors.BatteryMonitor
@@ -50,6 +56,24 @@ class DashboardService : LifecycleService() {
     private val weather = WeatherSource()
 
     private var weatherJob: Job? = null
+    private val simulatedOverspeed = OverspeedGate()
+    private val simulatedSweetSpot = SweetSpotGate()
+
+    /** Debug only: lets adb dial in a speed. Never registered in a release build. */
+    private val debugSpeedReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action != DebugSpeed.ACTION) return
+            if (intent.getBooleanExtra(DebugSpeed.EXTRA_OFF, false)) {
+                DebugSpeed.set(null)
+                Log.i(TAG, "Simulated speed off")
+                return
+            }
+            val kmh = intent.getFloatExtra(DebugSpeed.EXTRA_KMH, -1f)
+            if (kmh < 0f) return
+            DebugSpeed.set(kmh)
+            Log.i(TAG, "Simulated speed ${kmh.toInt()} km/h")
+        }
+    }
 
     @Volatile private var lastLatitude: Double? = null
     @Volatile private var lastLongitude: Double? = null
@@ -78,6 +102,7 @@ class DashboardService : LifecycleService() {
 
     override fun onCreate() {
         super.onCreate()
+        registerDebugSpeed()
         settings = RideSettings(this)
     }
 
@@ -163,9 +188,29 @@ class DashboardService : LifecycleService() {
                 location.checkStale(System.currentTimeMillis())
                 if (tick % BLUETOOTH_EVERY_TICKS == 0) bluetooth.refresh()
                 if (tick % WEATHER_EVERY_TICKS == 0) refreshWeatherInBackground()
+                publishSimulatedSpeed()
                 tick++
                 delay(TICK_MS)
             }
+        }
+    }
+
+    /**
+     * Keeps a bench-simulated speed alive on the tick. Location updates alone are not enough: the
+     * point of the simulator is to work indoors, where fixes are scarce or absent.
+     */
+    private fun publishSimulatedSpeed() {
+        val simulated = DebugSpeed.value() ?: return
+        val warning = simulatedOverspeed.update(simulated, true)
+        val sweet = simulatedSweetSpot.update(simulated, true)
+        RideRepository.update {
+            it.copy(
+                speedKmh = simulated,
+                speedValid = true,
+                gpsFix = true,
+                overspeed = warning,
+                sweetSpot = sweet,
+            )
         }
     }
 
@@ -201,6 +246,17 @@ class DashboardService : LifecycleService() {
         val now = System.currentTimeMillis()
         if (!weather.due(latitude, longitude, now)) return
         weather.refresh(latitude, longitude, now)
+    }
+
+    private fun registerDebugSpeed() {
+        if (!BuildConfig.DEBUG) return
+        ContextCompat.registerReceiver(
+            this,
+            debugSpeedReceiver,
+            IntentFilter(DebugSpeed.ACTION),
+            // adb broadcasts arrive from outside the app, so the bench receiver has to be exported.
+            ContextCompat.RECEIVER_EXPORTED,
+        )
     }
 
     private fun launchUnplugWatchdog(): Job = lifecycleScope.launch {
@@ -304,6 +360,7 @@ class DashboardService : LifecycleService() {
     }
 
     override fun onDestroy() {
+        if (BuildConfig.DEBUG) runCatching { unregisterReceiver(debugSpeedReceiver) }
         if (running) stopDashboard()
         super.onDestroy()
     }

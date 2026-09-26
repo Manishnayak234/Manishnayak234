@@ -68,18 +68,18 @@ fun RainTile(
                 if (rain?.temperatureC != null) {
                     Text(
                         text = Formatters.temperature(rain.temperatureC),
-                        style = numberStyle(20.sp, FontWeight.Bold),
+                        style = numberStyle(17.sp, FontWeight.Bold),
                         color = if (stale) colors.sub else colors.fg,
                     )
                 }
             }
 
-            Spacer(Modifier.height(6.dp))
+            Spacer(Modifier.height(4.dp))
 
             if (rain == null) {
                 Text(
                     text = stringResource(R.string.rain_waiting),
-                    style = numberStyle(34.sp, FontWeight.Bold),
+                    style = numberStyle(26.sp, FontWeight.Bold),
                     color = colors.sub,
                 )
                 return@Column
@@ -97,7 +97,7 @@ fun RainTile(
                     } else {
                         stringResource(R.string.rain_dry)
                     },
-                    style = numberStyle(34.sp, FontWeight.Bold),
+                    style = numberStyle(26.sp, FontWeight.Bold),
                     color = when {
                         stale -> colors.sub
                         wetHour != null -> colors.accent
@@ -109,7 +109,7 @@ fun RainTile(
                     Spacer(Modifier.width(6.dp))
                     Text(
                         text = Formatters.hourLabel(wetHour.hourOfDay),
-                        style = numberStyle(18.sp, FontWeight.SemiBold),
+                        style = numberStyle(15.sp, FontWeight.SemiBold),
                         color = colors.sub,
                     )
                 }
@@ -158,23 +158,23 @@ private fun RainBar(hour: RainHour, stale: Boolean) {
                     ),
             )
         }
-        Spacer(Modifier.height(3.dp))
+        Spacer(Modifier.height(2.dp))
         Text(
             text = Formatters.hourShort(hour.hourOfDay),
-            style = numberStyle(13.sp, FontWeight.SemiBold),
+            style = numberStyle(11.sp, FontWeight.SemiBold),
             color = colors.sub,
             maxLines = 1,
         )
     }
 }
 
-private val BAR_WIDTH = 16.dp
+private val BAR_WIDTH = 14.dp
 
 /**
  * Deliberately shorter than it looks like it could be. The bar plus its hour label has to fit the
  * tile alongside the header, and at 34 dp the labels were being clipped off the bottom edge.
  */
-private val BAR_MAX_HEIGHT = 26.dp
+private val BAR_MAX_HEIGHT = 18.dp
 
 @Preview(widthDp = 470, heightDp = 110, showBackground = true, backgroundColor = 0xFF000000)
 @Composable

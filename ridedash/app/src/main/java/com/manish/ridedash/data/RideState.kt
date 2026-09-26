@@ -34,6 +34,10 @@ data class RideState(
     val watchAlertsArmed: Boolean = false,
     /** True while the speed is over the limit the dashboard nags about. See [OverspeedGate]. */
     val overspeed: Boolean = false,
+    /** True in the 65-70 km/h band, where a Speed 400 is sipping fuel. See [SweetSpotGate]. */
+    val sweetSpot: Boolean = false,
+    /** Set for a few seconds after a proper lean, either way. See [LeanCheerGate]. */
+    val leanCheer: LeanSide? = null,
     /** Next few hours of rain, or null until the first forecast lands. */
     val rain: RainForecast? = null,
     val nav: NavState? = null,

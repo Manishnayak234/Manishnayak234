@@ -47,6 +47,8 @@ fun SpeedGauge(
     tripLine: String,
     /** Turns the arc, the number and the line beneath it into the speed warning. */
     overspeed: Boolean = false,
+    /** The 65-70 km/h band, where the engine is happiest. Shown on the same line. */
+    sweetSpot: Boolean = false,
     modifier: Modifier = Modifier,
     diameter: Dp = 290.dp,
     maxKmh: Float = MAX_SCALE_KMH,
@@ -132,12 +134,22 @@ fun SpeedGauge(
                 }
             }
 
-            // The warning takes the trip line's place rather than being added somewhere: same spot,
-            // no layout shift, and the trip total is not what matters at that moment.
+            // One line under the gauge, three things to say. The note takes the trip line's place
+            // rather than being added somewhere: same spot, no layout shift, and neither the trip
+            // total nor anything else is what matters at that moment.
+            val note = when {
+                overspeed -> stringResource(R.string.overspeed_warning)
+                sweetSpot -> stringResource(R.string.sweet_spot)
+                else -> tripLine
+            }
             Text(
-                text = if (overspeed) stringResource(R.string.overspeed_warning) else tripLine,
-                style = numberStyle(if (overspeed) 20.sp else 17.sp, FontWeight.Bold),
-                color = if (overspeed) Warn else colors.sub,
+                text = note,
+                style = numberStyle(if (overspeed || sweetSpot) 20.sp else 17.sp, FontWeight.Bold),
+                color = when {
+                    overspeed -> Warn
+                    sweetSpot -> colors.ok
+                    else -> colors.sub
+                },
                 maxLines = 1,
             )
         }

@@ -70,6 +70,7 @@ app/src/main/java/com/manish/ridedash/
     BrightnessSlider.kt        the brightness strip, on every dashboard layout
     CompactDashboard.kt        the half-width layout used in split screen
     RainTile.kt                rain for the next five hours, on the cruising screen
+    StartupBadge.kt            the SPEED 400 badge, the riding scene and the bike drawing
   ui/onboarding/               the setup checklist
   ui/stats/                    ride stats (v1: this ride and the last one)
   service/DashboardService.kt  foreground service: location, sensors, overlay, watch alerts
@@ -81,6 +82,10 @@ app/src/main/java/com/manish/ridedash/
   data/sensors/                location, lean, heading, barometer, light, battery, Bluetooth
   data/weather/                rain forecast: Open-Meteo fetch and its parser
   data/OverspeedGate.kt        the 80 km/h warning, with hysteresis
+  data/SweetSpotGate.kt        the 65-70 km/h band
+  data/LeanCheerGate.kt        the lean cheers, and the latch that makes them readable
+  data/RideMotion.kt           one intensity behind the road, the trees and the dust
+  data/DebugSpeed.kt           bench speed simulator, debug builds only
   data/settings/               DataStore: lean zero, overlay position, triggers, last ride
   nav/                         MapsParser, progress tracking, watch turn alerts
   util/                        formatting, setup checks, notification channels
@@ -102,7 +107,9 @@ overlay only read it.
 | 6 | Watch turn alerts on their own channel | done |
 | 7 | Dashboard mode: pinning, Hold to exit, NFC and charger triggers, onboarding | done |
 | 9 | Rain forecast for the next five hours | done, fetching live on the phone |
-| 11 | "Slow down buddy" over 80 km/h | done — **red state never seen; needs a ride** |
+| 11 | "Slow down buddy" over 80 km/h | done, seen on the bench with the speed simulator |
+| 12 | Riding scene: bike, road, dust, trees; badge morph; rider | done |
+| 13 | Sweet spot at 65-70, lean cheers past 15 degrees | done |
 | 10 | Power-on gauge sweep, as a cluster does | done |
 | 8 | Polish: heat warning, ride stats, persisted trip data | heat warning and stats done; full trip history is v2 |
 
@@ -203,6 +210,62 @@ blinks is one you stop reading. A speed the app does not trust never trips it, a
 clears a warning already up.
 
 It is suppressed during the power-on sweep, which runs to 180 by design.
+
+## The cluster it pretends to be
+
+At key-on the gauge sweeps 0 to 180 and back while a SPEED 400 badge holds the right panel. When the
+sweep ends the badge does not cut away: its bike shrinks and flies into the riding band while the
+dashboard fades up underneath, so the big drawing and the small one read as one object being set
+down. The morph's target is computed from the band's own published geometry, not eyeballed, so
+resizing the band cannot leave the bike landing beside it.
+
+Screen pinning waits for all of that. Android puts two dialogs up when lock task starts and they
+cover the gauge completely, so the sweep runs first on a clear screen and pinning follows. Waiting
+for window focus was the obvious answer and does not work here: a vivo SystemUI window holds the
+focus on this phone, so `onWindowFocusChanged` never fires at all.
+
+The band itself is a side-on riding scene: the bike never moves, the road slides under it, dust
+trails off the exhaust and a treeline drifts past at a fifth of the road's rate. That parallax is
+the whole illusion of depth. Everything is driven from one intensity in `RideMotion`, so the road,
+the trees and the smoke can never disagree about how hard the bike is working — and parked means
+parked: solid road line, no dust.
+
+The rider sits up, because a Speed 400 is a roadster and not a supersport. Accent yellow is spent on
+the visor, one shoulder and the dust, and nowhere else; the speed arc has to keep owning that colour.
+
+## Things the dashboard says
+
+One line under the gauge carries three states, in the trip readout's place so nothing shifts:
+
+| | |
+|---|---|
+| normal | `12.4 km · 0:38` |
+| 65-70 km/h | `SWEET SPOT`, in green |
+| over 80 km/h | `SLOW DOWN BUDDY!`, in red, with the arc and number to match |
+
+Past 15 degrees of lean the LEAN tile's own label is replaced for three seconds — `WAH BETE WAH,
+MAUJ KARDI` to the left, `BADE HEAVY DRIVER HO` to the right. It latches deliberately: nobody reads
+text mid-corner at fifteen degrees, so the cheer arrives on the way out, which is the only moment it
+could be read.
+
+All three are gates with hysteresis rather than plain comparisons. The sweet spot band is five km/h
+wide and the overspeed threshold sits where a throttle breathes; without the slack they would strobe,
+and a message that blinks is one you stop reading.
+
+## Testing at speed without riding
+
+Debug builds take a simulated speed over adb, so the things that only happen at speed can be seen on
+a bench: the overspeed warning, the sweet spot, the road and dust, the switch from compass to GPS
+bearing.
+
+```bash
+adb shell am broadcast -p com.manish.ridedash -a com.manish.ridedash.DEBUG_SPEED --ef kmh 95
+adb shell am broadcast -p com.manish.ridedash -a com.manish.ridedash.DEBUG_SPEED --ez off true
+```
+
+It publishes on the service tick rather than on GPS updates, so it works indoors with no fix.
+`DebugSpeed.set` is fenced behind `BuildConfig.DEBUG`: a release build has no path to a speed that
+did not come from the GPS, whatever is broadcast at it.
 
 ## Screen sizes
 

@@ -15,6 +15,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import com.manish.ridedash.data.NavState
 import com.manish.ridedash.data.RideState
@@ -34,6 +36,11 @@ fun DashboardScreen(
     state: RideState,
     /** Non-null while the power-on sweep is running, and it drives the gauge instead of the GPS. */
     sweepKmh: Float? = null,
+    /**
+     * 0 while the startup badge owns the right panel, 1 once the dashboard proper has taken over.
+     * In between, the badge's bike is shrinking into its place in the riding band.
+     */
+    introProgress: Float = 1f,
     /** Ticks slowly, only so the rain tile can tell a fresh forecast from a stale one. */
     nowMs: Long = 0L,
     onMap: () -> Unit,
@@ -88,12 +95,25 @@ fun DashboardScreen(
                         speedValid = sweepKmh != null || (state.speedValid && state.gpsFix),
                         // Never during the power-on sweep: it runs to 180 by design.
                         overspeed = sweepKmh == null && state.overspeed,
+                        sweetSpot = sweepKmh == null && state.sweetSpot,
                         tripLine = "${Formatters.tripKm(state.tripKm)} · ${Formatters.rideTime(state.rideTimeMs)}",
                     )
+
                 }
 
                 val nav = state.nav
-                if (nav != null) {
+                if (introProgress < 1f) {
+                    // Key-on. The badge owns the right panel while the needle sweeps, then hands
+                    // over: the panel fades up underneath while the badge's bike shrinks and slides
+                    // into the band, landing exactly where the band draws its own.
+                    IntroPanel(
+                        state = state,
+                        onCalibrateLean = onCalibrateLean,
+                        nowMs = nowMs,
+                        progress = introProgress,
+                        modifier = Modifier.weight(1f),
+                    )
+                } else if (nav != null) {
                     NavigatingPanel(
                         nav = nav,
                         headingDeg = state.headingDeg,
@@ -128,6 +148,76 @@ private val LEFT_PANEL_WIDTH = 360.dp
 
 /** Under this the full layout cannot be drawn honestly, so the compact one takes over. */
 private val COMPACT_WIDTH = 560.dp
+
+/**
+ * The hand-over from badge to dashboard.
+ *
+ * Both sit in the same box so the bike can travel between them. The target is computed from the
+ * band's own published geometry rather than eyeballed, so if the band is ever resized the bike
+ * still lands on it instead of near it.
+ */
+@Composable
+private fun IntroPanel(
+    state: RideState,
+    onCalibrateLean: () -> Unit,
+    nowMs: Long,
+    progress: Float,
+    modifier: Modifier = Modifier,
+) {
+    BoxWithConstraints(modifier = modifier) {
+        val density = LocalDensity.current
+        val panelW = maxWidth
+        val panelH = maxHeight
+
+        // Where the band will draw its bike, in this box's own coordinates.
+        val bandTop = CRUISING_VERTICAL_PADDING
+        val bandH = SCENE_HEIGHT
+        val smallH = bandH * SCENE_BIKE_HEIGHT_FRACTION
+        val smallW = smallH / BIKE_ASPECT
+        val smallCentreX = panelW * SCENE_BIKE_LEFT_FRACTION + smallW / 2f
+        val smallCentreY =
+            bandTop + bandH * SCENE_ROAD_Y_FRACTION - smallH * 0.97f + smallH / 2f
+
+        // Where the badge draws its bike: centred column, bike above the wordmark.
+        val bigW = BADGE_BIKE_WIDTH
+        val bigH = bigW * BIKE_ASPECT
+        val columnH = bigH + 6.dp + BADGE_TEXT_BLOCK
+        val bigCentreX = panelW / 2f
+        val bigCentreY = (panelH - columnH) / 2f + bigH / 2f
+
+        val scale = 1f + progress * ((smallW / bigW) - 1f)
+        val offset = with(density) {
+            Offset(
+                x = ((smallCentreX - bigCentreX) * progress).toPx(),
+                y = ((smallCentreY - bigCentreY) * progress).toPx(),
+            )
+        }
+
+        // The dashboard fades up underneath, with its own bike held back until the flight lands.
+        CruisingPanel(
+            state = state,
+            onCalibrateLean = onCalibrateLean,
+            nowMs = nowMs,
+            sceneBikeAlpha = if (progress >= 1f) 1f else 0f,
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer { alpha = progress },
+        )
+
+        StartupBadge(
+            modifier = Modifier.fillMaxSize(),
+            morph = progress,
+            bikeScale = scale,
+            bikeOffset = offset,
+        )
+    }
+}
+
+/** Matches CruisingPanel's own padding, so the morph target is not a guess. */
+private val CRUISING_VERTICAL_PADDING = 10.dp
+
+/** Height of the wordmark plus its rule, for working out where the badge's bike sits. */
+private val BADGE_TEXT_BLOCK = 94.dp
 
 @Preview(name = "Navigating", widthDp = 914, heightDp = 412, showBackground = true, backgroundColor = 0xFF000000)
 @Composable

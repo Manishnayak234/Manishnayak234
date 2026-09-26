@@ -35,6 +35,8 @@ android {
 
     buildFeatures {
         compose = true
+        // For BuildConfig.DEBUG, which fences off the bench speed simulator.
+        buildConfig = true
     }
 }
 

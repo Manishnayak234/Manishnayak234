@@ -16,6 +16,9 @@
     <string name="brightness_auto_button">A</string>
     <string name="tile_heading">HEADING</string>
     <string name="overspeed_warning">SLOW DOWN BUDDY!</string>
+    <string name="sweet_spot">SWEET SPOT</string>
+    <string name="cheer_lean_left">WAH BETE WAH, MAUJ KARDI</string>
+    <string name="cheer_lean_right">BADE HEAVY DRIVER HO</string>
     <string name="tile_rain">RAIN NEXT HOURS</string>
     <string name="rain_dry">DRY</string>
     <string name="rain_waiting">\u2014</string>
