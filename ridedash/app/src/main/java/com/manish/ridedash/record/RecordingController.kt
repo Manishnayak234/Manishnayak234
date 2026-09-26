@@ -1,7 +1,9 @@
 package com.manish.ridedash.record
 
+import android.Manifest
 import android.content.ContentValues
 import android.content.Context
+import android.content.pm.PackageManager
 import android.graphics.PorterDuff
 import android.os.Handler
 import android.os.Looper
@@ -61,6 +63,12 @@ class RecordingController(private val context: Context) {
      * recording screen once the camera permission is granted.
      */
     suspend fun bind(lifecycleOwner: LifecycleOwner, frontCamera: Boolean): Preview? {
+        if (!hasPermission(Manifest.permission.CAMERA)) {
+            Log.w(TAG, "No camera permission, so there is nothing to bind")
+            _state.value = _state.value.copy(bound = false, error = null)
+            return null
+        }
+
         val provider = awaitCameraProvider() ?: return null
         cameraProvider = provider
 
@@ -122,10 +130,17 @@ class RecordingController(private val context: Context) {
         }
     }
 
-    /** Starts writing to Movies/RideDash. [withAudio] needs the microphone permission. */
+    /**
+     * Starts writing to Movies/RideDash. Audio is included when [withAudio] asks for it and the
+     * microphone permission is actually held; a clip without audio beats no clip at all.
+     */
     fun start(withAudio: Boolean) {
         val capture = videoCapture ?: return
         if (recording != null) return
+        if (!hasPermission(Manifest.permission.CAMERA)) {
+            _state.value = _state.value.copy(error = "No camera permission")
+            return
+        }
 
         val name = "RideDash_" +
             SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date()) + ".mp4"
@@ -140,7 +155,7 @@ class RecordingController(private val context: Context) {
             .build()
 
         var pending = capture.output.prepareRecording(context, output)
-        if (withAudio) {
+        if (withAudio && hasPermission(Manifest.permission.RECORD_AUDIO)) {
             pending = runCatching { pending.withAudioEnabled() }
                 .onFailure { Log.w(TAG, "Carrying on without audio", it) }
                 .getOrDefault(pending)
@@ -186,6 +201,9 @@ class RecordingController(private val context: Context) {
             )
             continuation.invokeOnCancellation { future.cancel(false) }
         }
+
+    private fun hasPermission(permission: String): Boolean =
+        ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
 
     fun elapsedMs(): Long =
         if (startedAtMs == 0L || !_state.value.recording) 0L

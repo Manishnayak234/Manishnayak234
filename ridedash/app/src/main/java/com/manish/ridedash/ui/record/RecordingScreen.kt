@@ -19,6 +19,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -32,6 +34,8 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.manish.ridedash.R
@@ -67,11 +71,16 @@ fun RecordingScreen(
         PreviewView(context).apply { scaleType = PreviewView.ScaleType.FIT_CENTER }
     }
 
-    val hasCamera = remember {
+    // The permission dialog runs over this screen, so the answers have to be re-read when it goes
+    // away. Remembering them once would leave the camera dark until the rider backed out and returned.
+    var permissionToken by remember { mutableIntStateOf(0) }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { permissionToken++ }
+
+    val hasCamera = remember(permissionToken) {
         ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
             PackageManager.PERMISSION_GRANTED
     }
-    val hasMicrophone = remember {
+    val hasMicrophone = remember(permissionToken) {
         ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
             PackageManager.PERMISSION_GRANTED
     }
@@ -107,6 +116,15 @@ fun RecordingScreen(
                 elapsedMs = state.elapsedMs,
                 controller = controller,
                 modifier = Modifier.align(Alignment.TopEnd).padding(16.dp),
+            )
+        }
+
+        if (!state.recording && state.lastFile != null) {
+            Text(
+                text = stringResource(R.string.record_saved),
+                style = labelStyle,
+                color = colors.ok,
+                modifier = Modifier.align(Alignment.TopStart).padding(16.dp),
             )
         }
 
@@ -170,7 +188,7 @@ private fun RecordingChip(
     modifier: Modifier = Modifier,
 ) {
     val colors = rideColors
-    var shown by remember { mutableStateOf(elapsedMs) }
+    var shown by remember { mutableLongStateOf(elapsedMs) }
 
     // The camera reports progress in bursts; a one second tick keeps the clock honest.
     LaunchedEffect(Unit) {
