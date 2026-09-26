@@ -20,6 +20,7 @@ import com.manish.ridedash.data.sensors.LeanSource
 import com.manish.ridedash.data.sensors.LightSource
 import com.manish.ridedash.data.sensors.LocationSource
 import com.manish.ridedash.data.settings.RideSettings
+import com.manish.ridedash.data.weather.WeatherSource
 import com.manish.ridedash.nav.TurnAlerts
 import com.manish.ridedash.overlay.SpeedOverlay
 import com.manish.ridedash.util.Notifications
@@ -52,6 +53,7 @@ class DashboardService : LifecycleService() {
     private val battery by lazy { BatteryMonitor(this) }
     private val bluetooth by lazy { BluetoothMonitor(this) }
     private val turnAlerts by lazy { TurnAlerts(this) }
+    private val weather = WeatherSource()
 
     private val overlay by lazy {
         SpeedOverlay(
@@ -153,12 +155,21 @@ class DashboardService : LifecycleService() {
         lifecycleScope.launch {
             var tick = 0
             while (true) {
-                location.checkStale(System.currentTimeMillis())
+                val nowMs = System.currentTimeMillis()
+                location.checkStale(nowMs)
                 if (tick % BLUETOOTH_EVERY_TICKS == 0) bluetooth.refresh()
+                if (tick % WEATHER_EVERY_TICKS == 0) refreshWeather(nowMs)
                 tick++
                 delay(TICK_MS)
             }
         }
+    }
+
+    /** The weather source decides for itself whether the reading is stale or the bike has moved. */
+    private suspend fun refreshWeather(nowMs: Long) {
+        val latitude = location.lastLatitude ?: return
+        val longitude = location.lastLongitude ?: return
+        weather.refreshIfNeeded(latitude, longitude, nowMs)
     }
 
     private fun launchUnplugWatchdog(): Job = lifecycleScope.launch {
@@ -282,6 +293,9 @@ class DashboardService : LifecycleService() {
 
         private const val TICK_MS = 1_000L
         private const val BLUETOOTH_EVERY_TICKS = 5
+
+        /** Every 30 s the weather source is asked; it fetches far less often than that. */
+        private const val WEATHER_EVERY_TICKS = 30
         private const val STILL_KMH = 3f
         private const val UNPLUG_EXIT_AFTER_MS = 2 * 60_000L
 

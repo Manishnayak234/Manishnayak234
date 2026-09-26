@@ -13,10 +13,25 @@ building it, running it and what is finished.
 | | |
 |---|---|
 | **Navigating** (a route is running) | Speed gauge on the left, maneuver arrow, distance to the turn, street, progress bar, "Then …" and the ETA / LEFT / TIME row on the right. |
-| **Cruising** (no route) | Same gauge, and a 2×2 grid of heading, lean, altitude and max/avg speed. |
+| **Cruising** (no route) | Same gauge, and a 3×2 grid: heading, lean, weather, altitude, max/avg speed, rain and wind. |
 
 The switch between them is automatic: it follows whether the Google Maps ongoing notification is
 there.
+
+Two more things the dashboard does:
+
+- **Key-on sweep.** Entering dashboard mode runs the gauge 0 → 180 → 0 before live speed takes over,
+  the way the bike's own cluster does when the ignition comes on. A tap skips it. It is also a
+  self-test: you see the whole arc and every label before setting off.
+- **Recording mode** (the **REC** button). The camera records at sensor quality and the speed panel is
+  composited into the frames as they go past, so one file has you on one side and the numbers on the
+  other. Clips land in **Movies/RideDash**. Front camera by default, switchable to the road; the
+  microphone carries your commentary. It heats the phone, so expect the 45 °C warning sooner in the
+  sun.
+
+Weather comes from **Open-Meteo** — no API key and no account, which matters for an app that is
+sideloaded rather than published. It refreshes every 20 minutes or after 5 km, and a failed fetch keeps
+the last reading instead of blanking the tiles.
 
 ## Build and install
 
@@ -67,6 +82,9 @@ app/src/main/java/com/manish/ridedash/
   data/RideRepository.kt       StateFlow<RideState>, the one source of truth
   data/sensors/                location, lean, heading, barometer, light, battery, Bluetooth
   data/settings/               DataStore: lean zero, overlay position, triggers, last ride
+  data/weather/                Open-Meteo fetch, parser, WMO code labels
+  record/                      CameraX recording and the burned-in speed panel
+  ui/record/                   the recording screen
   nav/                         MapsParser, progress tracking, watch turn alerts
   util/                        formatting, setup checks, notification channels
 ```
@@ -86,6 +104,9 @@ overlay only read it.
 | 6 | Watch turn alerts on their own channel | done |
 | 7 | Dashboard mode: pinning, Hold to exit, NFC and charger triggers, onboarding | done |
 | 8 | Polish: heat warning, ride stats, persisted trip data | heat warning and stats done; full trip history is v2 |
+| 9 | Weather: Open-Meteo, the two tiles, the rain warning | done |
+| 10 | Key-on sweep | done |
+| 11 | Recording mode: CameraX with the speed burned in | done — **unproven on a phone** |
 
 ## Getting an APK without building it yourself
 
@@ -100,9 +121,9 @@ Android Studio; two different signatures cannot sit on top of each other.
 
 ## What has been checked, and what has not
 
-The build is green in CI: `assembleDebug` packages the APK, the unit tests pass (40 tests over the
-Maps parser, maneuver progress, watch-alert glyphs, trip maths, speed smoothing, heading wrap-around
-and the number formatting), and Android lint reports no errors.
+The build is green in CI: `assembleDebug` packages the APK, the unit tests pass (53 tests over the
+Maps parser, maneuver progress, watch-alert glyphs, trip maths, speed smoothing, heading wrap-around,
+the weather parser and the number formatting), and Android lint reports no errors.
 
 What that does **not** cover is a phone. Nothing here has run on a device, so the sensors, the Maps
 notification parsing, the overlay over Google Maps, screen pinning and the vivo-specific entry
@@ -124,7 +145,14 @@ milestone by milestone.
 - **Brightness.** The app never forces brightness; the phone's sunlight boost only works with auto
   brightness on, so leave it on.
 - **Heat.** Battery temperature is shown in the status bar once it passes 45 °C. In direct sun, a hood
-  over the phone matters more than anything in software.
+  over the phone matters more than anything in software — and recording makes it worse, so treat long
+  clips as a hot-weather compromise.
+- **Recording framing.** The burned-in panel takes the left 40% of the frame. If you want the true
+  half-and-half split, set `PANEL_FRACTION` to `0.5` in `record/SpeedPanelPainter.kt`; if you want more
+  camera, take it down to `0.3`.
+- **Weather with no signal.** The tiles keep the last reading rather than blanking, so a number on the
+  weather tile may be twenty minutes and a few kilometres old. That is deliberate — stale is more use
+  than empty.
 
 ## Not built yet
 

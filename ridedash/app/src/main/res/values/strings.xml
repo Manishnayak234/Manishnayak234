@@ -16,6 +16,8 @@
     <string name="tile_lean">LEAN</string>
     <string name="tile_altitude">ALTITUDE</string>
     <string name="tile_speed">MAX · AVG SPEED</string>
+    <string name="tile_weather">WEATHER</string>
+    <string name="tile_rain">RAIN · WIND</string>
 
     <!-- Navigating panel -->
     <string name="nav_then">THEN</string>
@@ -66,6 +68,10 @@
     <string name="setup_nfc_hint">For the tag on the mount. Skip it if you start the dashboard by hand.</string>
     <string name="setup_battery_title">Ignore battery optimisation</string>
     <string name="setup_battery_hint">Stops the system killing the service on a long ride.</string>
+    <string name="setup_camera_title">Camera</string>
+    <string name="setup_camera_hint">Only for recording mode, where the speed is burned into the clip.</string>
+    <string name="setup_microphone_title">Microphone</string>
+    <string name="setup_microphone_hint">So your commentary lands in the recording. Without it clips are silent.</string>
     <string name="setup_autostart_title">Autostart (vivo / iQOO)</string>
     <string name="setup_autostart_hint">Phone settings: Apps &#8594; RideDash &#8594; Autostart. Cannot be read by the app.</string>
     <string name="setup_bgpower_title">Background power: Allow</string>
@@ -74,6 +80,17 @@
     <string name="setup_recents_hint">Open Recents, pull RideDash down and lock it so the system leaves it alone.</string>
     <string name="setup_optional">optional</string>
     <string name="setup_manual">by hand</string>
+
+    <!-- Recording mode -->
+    <string name="btn_record">REC</string>
+    <string name="record_start">RECORD</string>
+    <string name="record_stop">STOP</string>
+    <string name="record_back">BACK</string>
+    <string name="record_flip_to_road">SHOW THE ROAD</string>
+    <string name="record_flip_to_rider">SHOW THE RIDER</string>
+    <string name="record_no_camera">Camera access is off. Grant it on the setup screen.</string>
+    <string name="record_no_microphone">No microphone access, so the clip will be silent.</string>
+    <string name="record_saved">Saved to Movies/RideDash</string>
 
     <!-- Toasts -->
     <string name="toast_lean_zeroed">Lean zeroed</string>

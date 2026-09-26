@@ -57,6 +57,18 @@ class FormattersTest {
     }
 
     @Test
+    fun `weather reads as whole degrees and a wind a rider can use`() {
+        assertEquals("27", Formatters.airTemp(27.4f))
+        assertEquals(Formatters.PLACEHOLDER, Formatters.airTemp(null))
+        assertEquals("Feels 30\u00B0", Formatters.feelsLike(30.1f))
+        assertEquals("40", Formatters.rainChance(40))
+        assertEquals(Formatters.PLACEHOLDER, Formatters.rainChance(null))
+        assertEquals("12 km/h NE", Formatters.wind(11.6f, 48f))
+        assertEquals("12 km/h", Formatters.wind(11.6f, null))
+        assertEquals(Formatters.PLACEHOLDER, Formatters.wind(null, 48f))
+    }
+
+    @Test
     fun `max and average speed share one line`() {
         assertEquals("96 / 41", Formatters.maxAvg(96.4f, 40.6f))
     }

@@ -1,5 +1,6 @@
 package com.manish.ridedash.data
 
+import com.manish.ridedash.data.weather.WeatherState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -46,6 +47,8 @@ object RideRepository {
     }
 
     fun setNav(nav: NavState?) = update { it.copy(nav = nav) }
+
+    fun setWeather(weather: WeatherState) = update { it.copy(weather = weather) }
 
     /** Clears the per-ride numbers but leaves calibration and settings alone. */
     fun resetRide() = update {

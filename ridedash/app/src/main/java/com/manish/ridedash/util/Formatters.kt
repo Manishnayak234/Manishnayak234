@@ -83,6 +83,25 @@ object Formatters {
         return String.format(Locale.US, "%d:%02d", hour12, minute)
     }
 
+    /** Air temperature, whole degrees; the degree sign is drawn separately. */
+    fun airTemp(tempC: Float?): String =
+        if (tempC == null) PLACEHOLDER else tempC.roundToInt().toString()
+
+    fun feelsLike(tempC: Float?): String =
+        if (tempC == null) PLACEHOLDER
+        else String.format(Locale.US, "Feels %d\u00B0", tempC.roundToInt())
+
+    fun rainChance(percent: Int?): String =
+        if (percent == null) PLACEHOLDER else percent.toString()
+
+    /** "12 km/h NE" — the wind as a rider reads it: strength first, then where it is from. */
+    fun wind(speedKmh: Float?, directionDeg: Float?): String {
+        if (speedKmh == null) return PLACEHOLDER
+        val speed = speedKmh.roundToInt()
+        val from = directionDeg?.let { compassPoint(it) } ?: return "$speed km/h"
+        return "$speed km/h $from"
+    }
+
     fun batteryTemp(tempC: Float?): String =
         if (tempC == null) PLACEHOLDER else String.format(Locale.US, "%.0f°C", tempC)
 }

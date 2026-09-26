@@ -10,12 +10,15 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.manish.ridedash.data.NavState
 import com.manish.ridedash.data.RideState
+import com.manish.ridedash.data.weather.WeatherState
 import com.manish.ridedash.ui.theme.RideDashTheme
 import com.manish.ridedash.ui.theme.rideColors
 import com.manish.ridedash.util.Formatters
@@ -32,15 +35,25 @@ fun DashboardScreen(
     state: RideState,
     onMap: () -> Unit,
     onRideStats: () -> Unit,
+    onRecord: () -> Unit,
     onExit: () -> Unit,
     onCalibrateLean: () -> Unit,
     modifier: Modifier = Modifier,
+    /** Bumped on each entry into dashboard mode, which is what makes the sweep run per key-on. */
+    sweepToken: Int = 0,
 ) {
     val colors = rideColors
+    val sweep = rememberClusterSweep(sweepToken)
+    val sweptSpeed = sweep.value
+
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(colors.bg),
+            .background(colors.bg)
+            // A tap cuts the key-on sweep short; once it is over this does nothing at all.
+            .pointerInput(sweepToken) {
+                detectTapGestures(onTap = { sweep.skip() })
+            },
     ) {
         StatusBar(state)
 
@@ -60,8 +73,8 @@ fun DashboardScreen(
                 contentAlignment = Alignment.Center,
             ) {
                 SpeedGauge(
-                    speedKmh = state.speedKmh,
-                    speedValid = state.speedValid && state.gpsFix,
+                    speedKmh = sweptSpeed ?: state.speedKmh,
+                    speedValid = sweptSpeed != null || (state.speedValid && state.gpsFix),
                     tripLine = "${Formatters.tripKm(state.tripKm)} · ${Formatters.rideTime(state.rideTimeMs)}",
                 )
             }
@@ -78,7 +91,12 @@ fun DashboardScreen(
             }
         }
 
-        BottomBar(onMap = onMap, onRideStats = onRideStats, onExit = onExit)
+        BottomBar(
+            onMap = onMap,
+            onRideStats = onRideStats,
+            onRecord = onRecord,
+            onExit = onExit,
+        )
     }
 }
 
@@ -99,6 +117,17 @@ private fun DashboardNavigatingPreview() {
                 batteryPct = 84,
                 bluetoothOn = true,
                 watchAlertsArmed = true,
+                weather = WeatherState(
+                    temperatureC = 27.4f,
+                    feelsLikeC = 30.1f,
+                    conditionCode = 2,
+                    condition = "Part cloud",
+                    precipitationMm = 0f,
+                    rainChancePercent = 40,
+                    windKmh = 12f,
+                    windDirectionDeg = 45f,
+                    fetchedAtMs = 0L,
+                ),
                 nav = NavState(
                     distanceValue = "350",
                     distanceUnit = "m",
@@ -114,6 +143,7 @@ private fun DashboardNavigatingPreview() {
             ),
             onMap = {},
             onRideStats = {},
+            onRecord = {},
             onExit = {},
             onCalibrateLean = {},
         )
@@ -142,9 +172,21 @@ private fun DashboardCruisingPreview() {
                 batteryPct = 84,
                 bluetoothOn = true,
                 watchAlertsArmed = true,
+                weather = WeatherState(
+                    temperatureC = 27.4f,
+                    feelsLikeC = 30.1f,
+                    conditionCode = 2,
+                    condition = "Part cloud",
+                    precipitationMm = 0f,
+                    rainChancePercent = 40,
+                    windKmh = 12f,
+                    windDirectionDeg = 45f,
+                    fetchedAtMs = 0L,
+                ),
             ),
             onMap = {},
             onRideStats = {},
+            onRecord = {},
             onExit = {},
             onCalibrateLean = {},
         )

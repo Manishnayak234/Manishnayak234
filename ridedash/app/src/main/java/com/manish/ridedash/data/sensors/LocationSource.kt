@@ -46,6 +46,15 @@ class LocationSource(
     private var started = false
     private var lastFixAtMs = 0L
 
+    /** Last known position, for anything that needs a place rather than a speed (the weather). */
+    @Volatile
+    var lastLatitude: Double? = null
+        private set
+
+    @Volatile
+    var lastLongitude: Double? = null
+        private set
+
     private val fusedCallback = object : LocationCallback() {
         override fun onLocationResult(result: LocationResult) {
             result.lastLocation?.let(::onLocation)
@@ -134,6 +143,8 @@ class LocationSource(
     private fun onLocation(location: Location) {
         val nowMs = System.currentTimeMillis()
         lastFixAtMs = nowMs
+        lastLatitude = location.latitude
+        lastLongitude = location.longitude
 
         val accuracyM = if (location.hasAccuracy()) location.accuracy else Float.MAX_VALUE
         val rawKmh = if (location.hasSpeed()) location.speed * 3.6f else 0f

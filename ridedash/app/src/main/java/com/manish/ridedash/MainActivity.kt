@@ -1,5 +1,6 @@
 package com.manish.ridedash
 
+import android.Manifest
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.nfc.NfcAdapter
@@ -20,10 +21,12 @@ import androidx.lifecycle.lifecycleScope
 import com.manish.ridedash.data.RideRepository
 import com.manish.ridedash.data.settings.RideSettings
 import com.manish.ridedash.nav.MapsParser
+import com.manish.ridedash.record.RecordingController
 import com.manish.ridedash.service.DashboardService
 import com.manish.ridedash.service.TriggerService
 import com.manish.ridedash.ui.dashboard.DashboardScreen
 import com.manish.ridedash.ui.onboarding.OnboardingScreen
+import com.manish.ridedash.ui.record.RecordingScreen
 import com.manish.ridedash.ui.stats.RideStatsScreen
 import com.manish.ridedash.ui.theme.RideDashTheme
 import com.manish.ridedash.util.SetupChecks
@@ -39,8 +42,11 @@ import kotlinx.coroutines.launch
 class MainActivity : ComponentActivity() {
 
     private lateinit var settings: RideSettings
+    private val recordingController by lazy { RecordingController(this) }
 
     private val screen = MutableStateFlow(Screen.SETUP)
+    /** Bumped on each entry into dashboard mode so the key-on sweep runs once per start. */
+    private val sweepToken = MutableStateFlow(0)
     private val setupItems = MutableStateFlow<List<SetupChecks.Item>>(emptyList())
     private val startEnabled = MutableStateFlow(false)
 
@@ -66,6 +72,7 @@ class MainActivity : ComponentActivity() {
             val current by screen.collectAsStateWithLifecycle()
             val items by setupItems.collectAsStateWithLifecycle()
             val canStart by startEnabled.collectAsStateWithLifecycle()
+            val sweep by sweepToken.collectAsStateWithLifecycle()
             val lastRide by produceState(RideSettings.LastRide()) {
                 settings.lastRide.collect { value = it }
             }
@@ -84,16 +91,23 @@ class MainActivity : ComponentActivity() {
                         state = state,
                         onMap = ::openMaps,
                         onRideStats = { screen.value = Screen.STATS },
+                        onRecord = ::openRecording,
                         onExit = ::exitDashboard,
                         onCalibrateLean = {
                             DashboardService.calibrateLean(this)
                             toast(getString(R.string.toast_lean_zeroed))
                         },
+                        sweepToken = sweep,
                     )
 
                     Screen.STATS -> RideStatsScreen(
                         state = state,
                         lastRide = lastRide,
+                        onBack = { screen.value = Screen.DASHBOARD },
+                    )
+
+                    Screen.RECORDING -> RecordingScreen(
+                        controller = recordingController,
                         onBack = { screen.value = Screen.DASHBOARD },
                     )
                 }
@@ -151,6 +165,7 @@ class MainActivity : ComponentActivity() {
         DashboardService.start(this)
         TriggerService.start(this)
         screen.value = Screen.DASHBOARD
+        sweepToken.value += 1
         pinScreen()
     }
 
@@ -161,6 +176,19 @@ class MainActivity : ComponentActivity() {
         window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         // Back to a normal phone: leave the app rather than sitting on top of everything.
         finish()
+    }
+
+    /**
+     * Recording mode needs the camera and, for commentary, the microphone. Both are asked for here
+     * rather than on the setup screen, because this is the only feature that uses them.
+     */
+    private fun openRecording() {
+        val missing = listOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO)
+            .filter { !SetupChecks.hasPermission(this, it) }
+        if (missing.isNotEmpty()) {
+            permissionLauncher.launch(missing.toTypedArray())
+        }
+        screen.value = Screen.RECORDING
     }
 
     /**
@@ -233,7 +261,7 @@ class MainActivity : ComponentActivity() {
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
     }
 
-    private enum class Screen { SETUP, DASHBOARD, STATS }
+    private enum class Screen { SETUP, DASHBOARD, STATS, RECORDING }
 
     companion object {
         private const val TAG = "RideDash/Main"

@@ -23,7 +23,10 @@ import com.manish.ridedash.R
  */
 object SetupChecks {
 
-    enum class Id { LOCATION, BACKGROUND_LOCATION, NOTIFICATIONS, OVERLAY, LISTENER, NFC, BATTERY, AUTOSTART, BACKGROUND_POWER, RECENTS }
+    enum class Id {
+        LOCATION, BACKGROUND_LOCATION, NOTIFICATIONS, OVERLAY, LISTENER, NFC, BATTERY, CAMERA,
+        MICROPHONE, AUTOSTART, BACKGROUND_POWER, RECENTS,
+    }
 
     enum class Kind {
         /** Ask with the normal runtime permission dialog. */
@@ -112,6 +115,24 @@ object SetupChecks {
             granted = NfcAdapter.getDefaultAdapter(context)?.isEnabled == true,
             optional = true,
             settingsIntent = Intent(Settings.ACTION_NFC_SETTINGS),
+        ),
+        Item(
+            id = Id.CAMERA,
+            titleRes = R.string.setup_camera_title,
+            hintRes = R.string.setup_camera_hint,
+            kind = Kind.RUNTIME,
+            granted = hasPermission(context, Manifest.permission.CAMERA),
+            optional = true,
+            permission = Manifest.permission.CAMERA,
+        ),
+        Item(
+            id = Id.MICROPHONE,
+            titleRes = R.string.setup_microphone_title,
+            hintRes = R.string.setup_microphone_hint,
+            kind = Kind.RUNTIME,
+            granted = hasPermission(context, Manifest.permission.RECORD_AUDIO),
+            optional = true,
+            permission = Manifest.permission.RECORD_AUDIO,
         ),
         Item(
             id = Id.AUTOSTART,

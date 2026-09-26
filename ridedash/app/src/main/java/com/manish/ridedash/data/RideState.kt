@@ -1,6 +1,7 @@
 package com.manish.ridedash.data
 
 import android.graphics.Bitmap
+import com.manish.ridedash.data.weather.WeatherState
 
 /** Everything the dashboard draws, in one immutable snapshot. */
 data class RideState(
@@ -32,6 +33,8 @@ data class RideState(
      */
     val watchAlertsArmed: Boolean = false,
     val nav: NavState? = null,
+    /** Null until the first successful fetch, and kept through later failures. */
+    val weather: WeatherState? = null,
 ) {
     val navigating: Boolean get() = nav != null
 

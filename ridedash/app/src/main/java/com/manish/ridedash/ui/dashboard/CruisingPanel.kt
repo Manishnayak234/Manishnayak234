@@ -18,6 +18,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -26,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.manish.ridedash.R
 import com.manish.ridedash.data.RideState
+import com.manish.ridedash.data.weather.WeatherState
 import com.manish.ridedash.ui.theme.RideDashTheme
 import com.manish.ridedash.ui.theme.labelStyle
 import com.manish.ridedash.ui.theme.numberStyle
@@ -54,6 +56,7 @@ fun CruisingPanel(
         ) {
             HeadingTile(state, Modifier.weight(1f))
             LeanTile(state, onCalibrateLean, Modifier.weight(1f))
+            WeatherTile(state, Modifier.weight(1f))
         }
         Row(
             modifier = Modifier.weight(1f),
@@ -61,6 +64,7 @@ fun CruisingPanel(
         ) {
             AltitudeTile(state, Modifier.weight(1f))
             SpeedRecordTile(state, Modifier.weight(1f))
+            RainTile(state, Modifier.weight(1f))
         }
     }
 }
@@ -74,7 +78,7 @@ private fun HeadingTile(state: RideState, modifier: Modifier = Modifier) {
                 headingDeg = state.headingDeg,
                 color = colors.fg,
                 ringColor = colors.track,
-                size = 60.dp,
+                size = 48.dp,
             )
             Spacer(Modifier.width(14.dp))
             TileValue(
@@ -107,7 +111,7 @@ private fun LeanTile(state: RideState, onCalibrate: () -> Unit, modifier: Modifi
                 leanDeg = state.leanDeg,
                 color = colors.accent,
                 trackColor = colors.track,
-                size = 68.dp,
+                size = 54.dp,
             )
         }
     }
@@ -131,6 +135,44 @@ private fun SpeedRecordTile(state: RideState, modifier: Modifier = Modifier) {
     }
 }
 
+/** Air temperature, with what it feels like underneath: the two numbers a rider dresses for. */
+@Composable
+private fun WeatherTile(state: RideState, modifier: Modifier = Modifier) {
+    val weather = state.weather
+    Tile(
+        label = stringResource(R.string.tile_weather),
+        modifier = modifier,
+        footer = weather?.let { "${it.condition} \u00B7 ${Formatters.feelsLike(it.feelsLikeC)}" },
+    ) {
+        TileValue(
+            text = Formatters.airTemp(weather?.temperatureC),
+            suffix = if (weather != null) "\u00B0" else null,
+        )
+    }
+}
+
+/**
+ * Rain and wind. It turns accent-coloured once rain is likely, because that is the one weather fact
+ * worth catching out of the corner of an eye.
+ */
+@Composable
+private fun RainTile(state: RideState, modifier: Modifier = Modifier) {
+    val colors = rideColors
+    val weather = state.weather
+    val warn = weather?.rainLikely == true
+    Tile(
+        label = stringResource(R.string.tile_rain),
+        modifier = modifier,
+        footer = Formatters.wind(weather?.windKmh, weather?.windDirectionDeg),
+    ) {
+        TileValue(
+            text = Formatters.rainChance(weather?.rainChancePercent),
+            suffix = if (weather?.rainChancePercent != null) "%" else null,
+            color = if (warn) colors.accent else colors.fg,
+        )
+    }
+}
+
 @Composable
 private fun Tile(
     label: String,
@@ -144,7 +186,7 @@ private fun Tile(
             .fillMaxHeight()
             .clip(RoundedCornerShape(14.dp))
             .background(colors.tile)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(horizontal = 12.dp, vertical = 10.dp),
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             Text(text = label, style = labelStyle, color = colors.sub)
@@ -166,13 +208,13 @@ private fun Tile(
 
 /** 52 sp condensed, with the degree sign kept small so the number keeps the room. */
 @Composable
-private fun TileValue(text: String, suffix: String? = null) {
+private fun TileValue(text: String, suffix: String? = null, color: Color? = null) {
     val colors = rideColors
     Row(verticalAlignment = Alignment.Top) {
         Text(
             text = text,
-            style = numberStyle(52.sp, FontWeight.Bold),
-            color = colors.fg,
+            style = numberStyle(TILE_VALUE_SP, FontWeight.Bold),
+            color = color ?: colors.fg,
             maxLines = 1,
         )
         if (suffix != null) {
@@ -184,6 +226,9 @@ private fun TileValue(text: String, suffix: String? = null) {
         }
     }
 }
+
+/** 52 sp was right for a 2x2 grid; three columns need a touch less. */
+private val TILE_VALUE_SP = 46.sp
 
 @Preview(widthDp = 554, heightDp = 308, showBackground = true, backgroundColor = 0xFF000000)
 @Composable
@@ -198,6 +243,17 @@ private fun CruisingPanelPreview() {
                 altitudeM = 560f,
                 maxSpeedKmh = 96f,
                 avgSpeedKmh = 41f,
+            weather = WeatherState(
+                temperatureC = 27.4f,
+                feelsLikeC = 30.1f,
+                conditionCode = 2,
+                condition = "Part cloud",
+                precipitationMm = 0f,
+                rainChancePercent = 40,
+                windKmh = 12f,
+                windDirectionDeg = 45f,
+                fetchedAtMs = 0L,
+            ),
             ),
             onCalibrateLean = {},
         )

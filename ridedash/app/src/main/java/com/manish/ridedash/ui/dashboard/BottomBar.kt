@@ -35,13 +35,15 @@ import com.manish.ridedash.ui.theme.buttonStyle
 import com.manish.ridedash.ui.theme.rideColors
 
 /**
- * The three glove-sized buttons along the bottom. Nothing here is smaller than 48 dp, and the only
- * destructive one (leaving dashboard mode) needs a deliberate two second hold.
+ * The four glove-sized buttons along the bottom. At 914 dp wide each one is still over 200 dp across,
+ * so nothing here is smaller than 48 dp in either direction, and the only destructive one (leaving
+ * dashboard mode) needs a deliberate two second hold.
  */
 @Composable
 fun BottomBar(
     onMap: () -> Unit,
     onRideStats: () -> Unit,
+    onRecord: () -> Unit,
     onExit: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -60,6 +62,11 @@ fun BottomBar(
         DashButton(
             label = stringResource(R.string.btn_ride_stats),
             onClick = onRideStats,
+            modifier = Modifier.weight(1f),
+        )
+        DashButton(
+            label = stringResource(R.string.btn_record),
+            onClick = onRecord,
             modifier = Modifier.weight(1f),
         )
         HoldToExitButton(onExit = onExit, modifier = Modifier.weight(1f))

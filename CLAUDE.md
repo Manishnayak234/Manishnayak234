@@ -68,12 +68,17 @@ The mockup is on the claude.ai design canvas "Bike Dashboard v1". All sizes belo
 
 ### 4.2 Cruising screen (no route)
 - Same status bar, gauge and bottom bar as 4.1.
-- The **right panel** is a 2×2 grid (gap 12), with tiles of radius 14 on a `tile` background:
+- The **right panel** is a 3×2 grid (gap 12), with tiles of radius 14 on a `tile` background:
   - **HEADING:** compass needle + "NE 30°".
   - **LEAN:** "L 23°" + a small semicircle needle, with "Max L xx° · R xx°" below.
+  - **WEATHER:** "27°" + "Part cloud · Feels 30°".
   - **ALTITUDE:** "560 m".
   - **MAX · AVG SPEED:** "96 / 41 km/h".
-- Tile values are Barlow Condensed 700, 52 sp. Labels are 14 sp, letter-spacing 1, in `sub`.
+  - **RAIN · WIND:** "40%" + "12 km/h NE". The number turns `accent` once rain is likely
+    (raining now, or 60% or more in the next hour), which is the one weather fact worth catching out
+    of the corner of an eye.
+- Tile values are Barlow Condensed 700, 46 sp (52 sp was right for two columns, not three). Labels are
+  14 sp, letter-spacing 1, in `sub`.
 - **Auto-switch:** show 4.2 when there's no active Google Maps navigation notification, and 4.1 when there is one.
 
 ### 4.3 Map view (chosen approach: "Option 1")
@@ -86,7 +91,33 @@ The mockup is on the claude.ai design canvas "Bike Dashboard v1". All sizes belo
   - **Tap** brings the dashboard back to the front.
 - The overlay shows only while Maps is in front during dashboard mode.
 
-### 4.4 Colour tokens
+### 4.4 Key-on sweep
+- Entering dashboard mode sweeps the gauge **0 → 180 → 0** before live speed takes over: 800 ms up,
+  600 ms back, `FastOutSlowIn`, the number counting with the arc.
+- It runs **once per key-on**, like the bike's own cluster — not once per install, and not again on the
+  way back from the stats screen.
+- **A tap anywhere skips it.** It doubles as a self-test: the whole arc and every scale label are on
+  screen before the ride starts.
+
+### 4.5 Recording mode
+- For explaining a route out loud: the camera records and the **speed is burned into the frames**, so
+  one file has the rider on one side and the numbers on the other with nothing to edit afterwards.
+- **CameraX** `VideoCapture` at FHD (falling back to HD), plus `OverlayEffect` from
+  `androidx.camera:camera-effects` targeting **both** preview and video capture, so what is on screen
+  is exactly what lands in the file.
+- The panel is plain `Canvas` drawing (`SpeedPanelPainter`), sized as fractions of the frame so 1080p
+  and 4K both come out right. It takes the left **40%** of the width; set `PANEL_FRACTION` to `0.5`
+  for a true half-and-half split.
+- Panel contents: speed (Barlow Condensed italic), "km/h", then REC elapsed, TRIP and LEAN.
+- Front camera by default (the rider talking), switchable to the rear for the road. Mirroring is left
+  off so the burned-in text is never reversed.
+- Audio comes from the microphone for commentary; without that permission the clip is silent and says
+  so on screen.
+- Files land in **Movies/RideDash** via `MediaStore`, named `RideDash_<timestamp>.mp4`.
+- Recording only runs while the recording screen is in front, so nothing keeps the camera open behind
+  the rider's back. **It makes the phone hotter** — expect the heat warning sooner in the sun.
+
+### 4.6 Colour tokens
 | Token | Day | Night |
 |---|---|---|
 | bg | #000000 | #000000 |
@@ -102,7 +133,7 @@ The mockup is on the claude.ai design canvas "Bike Dashboard v1". All sizes belo
   - Rough starting points: night below about 10 lux, day above about 40 lux, both held for 5 s.
   - It can also follow the time of sunset/sunrise.
 
-### 4.5 Sunlight readability rules (must follow)
+### 4.7 Sunlight readability rules (must follow)
 - No grey-on-grey, no gradients, no transparency on data, no thin fonts.
 - Keep the main numbers huge. Show only essential items while riding.
 - **Do not force brightness to 100%.** Keep the system auto-brightness on, because the phone's extra-bright sunlight boost usually works only with auto-brightness.
@@ -126,6 +157,11 @@ The mockup is on the claude.ai design canvas "Bike Dashboard v1". All sizes belo
   - Note: a handlebar-mounted phone also turns with the steering, so treat lean as approximate.
 - **Altitude:** the barometer (`TYPE_PRESSURE` → `SensorManager.getAltitude`), offset against GPS altitude every few minutes.
   - Fallback: GPS altitude.
+- **Weather:** **Open-Meteo**, chosen because it needs no API key and no account — nothing to leak in a
+  sideloaded APK. One request for current conditions plus the next two hours of rain probability.
+  - Refreshed at most every 20 minutes, or sooner once the bike has moved 5 km.
+  - A failure keeps the last reading rather than blanking the tiles; with no network at all they show
+    "--".
 - **Clock and battery:** system values. Also watch the battery temperature.
   - If it's above about 45 °C, show a small heat warning. Heat is the main risk in the sun.
 
@@ -168,6 +204,8 @@ The mockup is on the claude.ai design canvas "Bike Dashboard v1". All sizes belo
 - **Permissions:**
   - `ACCESS_FINE_LOCATION`, `ACCESS_BACKGROUND_LOCATION` (only if needed), `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_LOCATION`
   - `POST_NOTIFICATIONS`, `SYSTEM_ALERT_WINDOW` ("Display over other apps"), `NFC`
+  - `INTERNET` (weather), `CAMERA` and `RECORD_AUDIO` (recording mode; both optional on the checklist,
+    and asked for when recording mode is opened)
   - Notification access (the `NotificationListenerService` setting)
 - **vivo/iQOO specific:**
   - Autostart ON for the app.
@@ -191,6 +229,9 @@ ridedash/app/src/main/java/com/manish/ridedash/
   data/RideRepository.kt     // StateFlow<RideState>
   data/sensors/              // LocationSource, LeanSource, BaroSource, LightSource, ...
   data/settings/             // DataStore
+  data/weather/              // Open-Meteo fetch and parser
+  record/                    // CameraX recording, the burned-in speed panel
+  ui/record/                 // the recording screen
   nav/MapsParser.kt          // notification → NavState
   util/
 ```
@@ -205,9 +246,12 @@ ridedash/app/src/main/java/com/manish/ridedash/
 6. **Watch turn alerts:** the notification channel.
 7. **Dashboard mode:** kiosk / screen pinning, Hold to exit, NFC trigger, charger trigger, onboarding checklist.
 8. **Polish:** heat warning, ride stats screen, persist trip data (DataStore/Room).
+9. **Weather:** Open-Meteo, the two tiles, the rain warning.
+10. **Key-on sweep:** the gauge flourish on entering dashboard mode.
+11. **Recording mode:** CameraX plus the burned-in speed panel.
 
-Milestones 1–7 are implemented, and 8 apart from the full trip history. See the status table in
-`ridedash/README.md` for what still needs checking on the bike.
+Milestones 1–7 and 9–11 are implemented, and 8 apart from the full trip history. See the status table
+in `ridedash/README.md` for what still needs checking on the bike.
 
 ## 12. Testing tips
 - USB debugging: `adb devices`, then run from Android Studio. Wireless: `adb pair` / `adb connect`.
@@ -216,7 +260,9 @@ Milestones 1–7 are implemented, and 8 apart from the full trip history. See th
 - **Sunlight test:** outdoors at midday. Check that every value is readable at arm's length.
 
 ## 13. Out of scope for now
-- Dashcam (removed), TPMS (not wanted), bike RPM/gear/fuel.
+- **Continuous dashcam** (loop recording, incident capture, always-on) is still out. Recording mode
+  (4.5) is the different thing: short clips the rider starts on purpose to talk about a route.
+- TPMS (not wanted), bike RPM/gear/fuel.
 - **Possible future:** an ESP32 + BLE bridge for bike signals (RPM, neutral, indicators, battery voltage).
 
 ## 14. Safety and legal notes
