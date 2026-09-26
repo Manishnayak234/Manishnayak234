@@ -202,10 +202,19 @@ class MainActivity : ComponentActivity() {
         }
         runCatching { stopLockTask() }
         RideRepository.setMapsInFront(true)
+
+        // Already sharing the screen: Maps goes into the other half rather than over the dashboard.
+        // Android ignores this flag from a full-screen app, so the split has to be started by hand
+        // from Recents — an app is not allowed to start one for itself.
+        startMaps(launchIntent, adjacent = isInMultiWindowMode)
+    }
+
+    private fun startMaps(launchIntent: Intent, adjacent: Boolean) {
         runCatching {
             startActivity(
                 launchIntent.apply {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
+                    if (adjacent) addFlags(Intent.FLAG_ACTIVITY_LAUNCH_ADJACENT)
                 }
             )
         }.onFailure {

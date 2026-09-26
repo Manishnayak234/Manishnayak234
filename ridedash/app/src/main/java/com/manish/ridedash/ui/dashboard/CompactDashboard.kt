@@ -30,7 +30,6 @@ import androidx.compose.ui.unit.sp
 import com.manish.ridedash.data.NavState
 import com.manish.ridedash.data.RideState
 import com.manish.ridedash.ui.theme.RideDashTheme
-import com.manish.ridedash.ui.theme.labelStyle
 import com.manish.ridedash.ui.theme.numberStyle
 import com.manish.ridedash.ui.theme.rideColors
 import com.manish.ridedash.util.Formatters

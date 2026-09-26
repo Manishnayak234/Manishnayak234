@@ -9,7 +9,6 @@
     <string name="btn_ride_stats">RIDE STATS</string>
     <string name="btn_hold_to_exit">HOLD TO EXIT</string>
     <string name="btn_exiting">RELEASE TO STAY</string>
-    <string name="unit_kmh">km/h</string>
     <string name="no_value">--</string>
 
     <!-- Tiles -->
@@ -17,8 +16,6 @@
     <string name="brightness_auto_button">A</string>
     <string name="tile_heading">HEADING</string>
     <string name="tile_lean">LEAN</string>
-    <string name="tile_altitude">ALTITUDE</string>
-    <string name="tile_speed">MAX · AVG SPEED</string>
 
     <!-- Navigating panel -->
     <string name="nav_then">THEN</string>
