@@ -734,7 +734,14 @@ function simulate(cfg){
     }
     out.push(snap);
   }
-  return {days:out,sub,cfg};
+  /* The season runs until both crops have finished their cycle, not to a fixed
+     length: a December sowing needs twice as long to accumulate the same thermal
+     time as an April one. Two weeks of margin on the end. */
+  let lastLive=0;
+  for(const k in plants) if(counts[k]>0)
+    for(const dd of out) if(dd.crops[k].alive&&dd.crops[k].up) lastLive=Math.max(lastLive,dd.d);
+  const cut=clamp(lastLive+14,90,cfg.horizon);
+  return {days:out.slice(0,cut+1),sub,cfg,horizon:cut};
 }
 </script>
 
@@ -1221,8 +1228,9 @@ function nextMilestone(sim,d){
 const $=id=>document.getElementById(id);
 const STORE="tubgarden.v1";
 const todayISO=isoDate(new Date());
+const MAXDAYS=300;   // hard ceiling; each run is trimmed to when both crops finish
 const DEFAULTS={sown:todayISO,city:"delhi",volL:4.5,site:"balcony",nCuke:2,nPea:4,vcFrac:0.25,
-  discipline:0.85,holes:false,support:true,handPollinate:false,pests:true,horizon:165};
+  discipline:0.85,holes:false,support:true,handPollinate:false,pests:true,horizon:MAXDAYS};
 let cfg={...DEFAULTS}, obs=[], sim=null, view="both", day=0, playing=null;
 
 function load(){try{const r=JSON.parse(localStorage.getItem(STORE)||"null");
@@ -1257,7 +1265,9 @@ function todayIndex(){
 
 /* ---- rebuild everything ---- */
 function rebuild(keepDay){
+  cfg.horizon=MAXDAYS;
   sim=simulate(cfg);
+  cfg.horizon=sim.horizon;
   $("scrub").max=String(cfg.horizon);
   day=clamp(keepDay==null?todayIndex():keepDay,0,cfg.horizon);
   $("scrub").value=String(day);
@@ -1274,7 +1284,7 @@ function renderStage(){
   $("capLight").textContent=`${fmt(snap.dli,1)} mol/m²·d light · ET ${Math.round(snap.etcML)} ml · one plant of each drawn`;
   $("dayNum").textContent=String(day);
   $("dayDate").textContent=fmtDateY(snap.date);
-  $("scrubStamp").textContent=`${fmtDateY(snap.date)} · day ${day} of ${cfg.horizon}`;
+  $("scrubStamp").textContent=`${fmtDateY(snap.date)} · day ${day} of ${cfg.horizon} — the run ends when both crops have finished`;
 }
 function tile(k,v,unit,meter,meterCol,sub){
   return `<div class="ro"><div class="k">${k}</div><div class="v">${v}${unit?`<small>${unit}</small>`:""}</div>
@@ -1439,6 +1449,7 @@ $("methods").innerHTML=`
 <li><b>Nitrogen</b> — vermicompost is mostly locked up in organic matter. It mineralises at about 0.3% a day at 25 °C, doubling for every 10 °C, and slows in a dry or waterlogged mix. Peas cover most of their own nitrogen from root nodules after about three weeks.</li>
 <li><b>Carbon</b> — leaf area intercepts light by Beer's law (k = 0.85), and intercepted light becomes dry matter at about 0.78 g per mol for cucumber and 0.66 for pea. That dry matter is split between leaf, stem, root and fruit according to the stage. Stresses multiply, so they compound rather than add.</li>
 <li><b>Shape</b> — nodes are paid for in leaf: the plant adds a node once it has grown enough leaf to fill one, and early nodes carry smaller leaves than later ones. The internode between them stretches in poor light and shortens when the tub is dry, which is why a window-grown vine draws long and sparse while a terrace one draws stocky.</li>
+<li><b>Length of the run</b> — the season is not a fixed number of days. It runs until both crops have passed the thermal time that ends their cycle, plus a fortnight. A Delhi cucumber sown in April is finished by about day 95; the same seed sown in October takes until about day 190, because it gathers the same degree days far more slowly through winter.</li>
 <li><b>Stages</b> — growing degree days from sowing, base 10 °C for cucumber and 4.4 °C for pea, with the daily high capped at the crop's cut-off.</li>
 <li><b>Fruit</b> — flowers appear at a rate set by the plant's vigour. Each has to be pollinated: peas pollinate themselves, cucumber needs an insect or your finger. Set fruit then competes for assimilate, and the youngest are dropped when there is not enough.</li>
 </ul>

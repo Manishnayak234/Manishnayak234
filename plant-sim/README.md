@@ -33,6 +33,7 @@ weather ──► radiation & reference ET ──► water balance ──► N m
 | Nitrogen | Organic N in the vermicompost mineralises at ~0.3 %/day at 25 °C, Q10 = 2, slowed when dry or waterlogged; crop demand from biomass × tissue N; peas cover ~58 % of their own demand by fixation after nodulation |
 | Carbon | Beer's law interception (k = 0.85) on a canopy footprint capped by the lit area available; RUE 0.78 g DM/mol intercepted PAR (cucumber), 0.66 (pea) |
 | Architecture | Nodes are paid for in leaf area, with leaf size rising as the plant matures; internodes stretch in poor light and shorten under water stress |
+| Season length | The run ends when both crops pass the thermal time that closes their cycle, plus a fortnight (floor 90 days, ceiling 300) — so an April Delhi sowing runs ~110 days and an October one ~200 |
 | Phenology | Growing degree days from sowing — base 10 °C for cucumber, 4.4 °C for pea, daily high capped at the crop's cut-off |
 | Fruit | Flowers appear per node. Cucumber needs an insect or a hand; pea is self-pollinating and aborts above ~32 °C. Set fruit competes for assimilate and the youngest drop when there is not enough |
 | Stress | Temperature, water, nitrogen, root volume, oxygen and disease all act as multipliers on the same daily carbon gain |
