@@ -1,0 +1,1495 @@
+<title>Tub Garden Simulator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: instrument panel — sticky header, tub canvas beside a readout stack,
+   then full-width strips for phenology, charts, log. Stacks to one column < 860px. */
+:root{
+  --bg:#f3f6f1; --surface:#fcfcfb; --surface-2:#e9eee7; --sunken:#eef2ec;
+  --ink:#17201a; --ink-2:#4b5a50; --ink-3:#7d8b81; --line:#d7ded5; --line-2:#c3ccc0;
+  --accent:#2e7d4f; --accent-ink:#1d5635; --accent-soft:#e0efe5;
+  --cuke:#2e7d4f; --pea:#a43e8c; --water:#2563a8; --soil:#6b4f3a;
+  --warn:#9d6a0d; --warn-soft:#faefd7; --crit:#a93a28; --crit-soft:#fbe8e3;
+  --sky-hi:#cfe0ef; --sky-lo:#eef3f7;
+  --f-display:"Fraunces",Georgia,"Times New Roman",serif;
+  --f-body:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --r:10px; --shadow:0 1px 2px rgba(23,32,26,.06),0 6px 18px -12px rgba(23,32,26,.22);
+}
+@media (prefers-color-scheme:dark){ :root:not([data-theme="light"]){
+  --bg:#0f1411; --surface:#161c18; --surface-2:#1e2621; --sunken:#121814;
+  --ink:#e7ede7; --ink-2:#a7b3aa; --ink-3:#7c8a81; --line:#2a332d; --line-2:#394339;
+  --accent:#4ca869; --accent-ink:#8fd6a6; --accent-soft:#1b2a21;
+  --cuke:#4ca869; --pea:#c566ac; --water:#5c9fe0; --soil:#8a6a4f;
+  --warn:#d9a441; --warn-soft:#2b2415; --crit:#e0705c; --crit-soft:#2d1a16;
+  --sky-hi:#1b2733; --sky-lo:#141a1f;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 22px -14px rgba(0,0,0,.8);
+  color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#0f1411; --surface:#161c18; --surface-2:#1e2621; --sunken:#121814;
+  --ink:#e7ede7; --ink-2:#a7b3aa; --ink-3:#7c8a81; --line:#2a332d; --line-2:#394339;
+  --accent:#4ca869; --accent-ink:#8fd6a6; --accent-soft:#1b2a21;
+  --cuke:#4ca869; --pea:#c566ac; --water:#5c9fe0; --soil:#8a6a4f;
+  --warn:#d9a441; --warn-soft:#2b2415; --crit:#e0705c; --crit-soft:#2d1a16;
+  --sky-hi:#1b2733; --sky-lo:#141a1f;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 22px -14px rgba(0,0,0,.8);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:14px;line-height:1.5;margin:0;
+  -webkit-font-smoothing:antialiased}
+h1,h2,h3{font-family:var(--f-display);font-weight:700;margin:0;text-wrap:balance;letter-spacing:-.01em}
+.wrap{max-width:1180px;margin:0 auto;padding-inline:16px;padding-block:0 56px}
+
+/* header */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:40;background:color-mix(in srgb,var(--bg) 88%,transparent);
+  backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.top-in{max-width:1180px;margin:0 auto;padding:10px 16px;display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.brand{display:flex;align-items:baseline;gap:9px;min-width:0}
+.brand h1{font-size:19px}
+.brand .sub{font-family:var(--f-mono);font-size:11px;color:var(--ink-3);letter-spacing:.02em}
+.spacer{flex:1 1 auto}
+.daybox{display:flex;align-items:center;gap:8px;font-family:var(--f-mono);font-size:12px;color:var(--ink-2)}
+.daybox b{font-size:16px;color:var(--ink);font-weight:600}
+.iconbtn{background:var(--surface);border:1px solid var(--line);color:var(--ink-2);border-radius:8px;height:32px;min-width:32px;
+  padding:0 9px;cursor:pointer;font:500 12px/1 var(--f-body);display:inline-flex;align-items:center;gap:6px;justify-content:center}
+.iconbtn:hover{border-color:var(--line-2);color:var(--ink)}
+.iconbtn[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--accent-ink)}
+:where(button,select,input,a):focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+
+/* generic card */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow)}
+.card>header{padding:12px 14px 0;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.card>header h2{font-size:14px;letter-spacing:.01em}
+.card>header .note{font-family:var(--f-mono);font-size:11px;color:var(--ink-3)}
+.pad{padding:14px}
+.eyebrow{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3)}
+
+/* main grid */
+.grid{display:grid;grid-template-columns:minmax(0,1.32fr) minmax(0,1fr);gap:16px;align-items:start;margin-top:16px}
+@media (max-width:860px){.grid{grid-template-columns:1fr}}
+.stack{display:grid;gap:16px;align-content:start;min-width:0}
+
+/* tub canvas */
+.stage-wrap{position:relative;border-radius:var(--r);overflow:hidden;background:linear-gradient(var(--sky-lo),var(--sky-hi));min-width:0}
+#tub{display:block;width:100%;height:auto;max-width:100%}
+.stage-tabs{position:absolute;top:10px;left:10px;display:flex;gap:6px}
+.chip{border:1px solid var(--line);background:color-mix(in srgb,var(--surface) 85%,transparent);color:var(--ink-2);
+  border-radius:999px;padding:4px 10px;font:500 11.5px/1.35 var(--f-body);cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.chip[aria-pressed="true"]{background:var(--surface);color:var(--ink);border-color:var(--line-2);font-weight:600}
+.dot{width:8px;height:8px;border-radius:50%;flex:0 0 auto}
+.stage-cap{position:absolute;left:10px;bottom:10px;right:10px;display:flex;gap:8px;align-items:flex-end;justify-content:space-between;
+  pointer-events:none;flex-wrap:wrap}
+@media (max-width:620px){.stage-cap{flex-direction:column;align-items:flex-start;gap:6px}}
+.stage-cap{gap:8px}
+.stage-cap .pill{background:color-mix(in srgb,var(--surface) 90%,transparent);border:1px solid var(--line);border-radius:8px;
+  padding:5px 9px;font-family:var(--f-mono);font-size:11px;color:var(--ink-2)}
+
+/* transport */
+.transport{display:flex;align-items:center;gap:10px;padding:10px 14px;border-top:1px solid var(--line);flex-wrap:wrap}
+input[type=range]{flex:1 1 180px;min-width:120px;accent-color:var(--accent)}
+.transport .stamp{font-family:var(--f-mono);font-size:12px;color:var(--ink-2);white-space:nowrap}
+
+/* readouts */
+.readouts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;background:var(--line);border-radius:var(--r);overflow:hidden;
+  border:1px solid var(--line)}
+.ro{background:var(--surface);padding:10px 12px;min-width:0}
+.ro .k{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3)}
+.ro .v{font-family:var(--f-mono);font-size:19px;font-weight:600;font-variant-numeric:tabular-nums;margin-top:2px}
+.ro .v small{font-size:11px;font-weight:400;color:var(--ink-3);margin-left:2px}
+.ro .m{font-size:11.5px;color:var(--ink-3)}
+.meter{height:5px;border-radius:3px;background:var(--surface-2);overflow:hidden;margin-top:7px}
+.meter i{display:block;height:100%;border-radius:3px}
+
+/* alerts */
+.alerts{display:grid;gap:8px}
+.alert{display:grid;grid-template-columns:3px 1fr;gap:10px;border:1px solid var(--line);border-radius:9px;overflow:hidden;background:var(--surface)}
+.alert .bar{background:var(--ink-3)}
+.alert.warn .bar{background:var(--warn)} .alert.warn{background:var(--warn-soft);border-color:color-mix(in srgb,var(--warn) 35%,var(--line))}
+.alert.crit .bar{background:var(--crit)} .alert.crit{background:var(--crit-soft);border-color:color-mix(in srgb,var(--crit) 35%,var(--line))}
+.alert .body{padding:8px 11px 9px}
+.alert .t{font-weight:600;font-size:12.5px;display:flex;gap:7px;align-items:center}
+.alert .t em{font-style:normal;font-family:var(--f-mono);font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3)}
+.alert p{margin:3px 0 0;font-size:12.5px;color:var(--ink-2);line-height:1.45}
+
+/* phenology */
+.pheno{display:grid;gap:3px}
+.pheno-row{display:grid;grid-template-columns:116px minmax(0,1fr);gap:10px;align-items:center}
+.pheno-row .lab{font-size:12px;color:var(--ink-2);text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pheno-bar{position:relative;height:22px;background:var(--sunken);border-radius:5px;overflow:hidden}
+.pheno-bar i{position:absolute;top:0;bottom:0;border-radius:4px;opacity:.9}
+.pheno-bar .today{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--ink);opacity:.75}
+.pheno-scale{display:grid;grid-template-columns:116px minmax(0,1fr);gap:10px;font-family:var(--f-mono);font-size:10.5px;color:var(--ink-3)}
+.pheno-scale .ticks{display:flex;justify-content:space-between}
+
+/* tables / forms */
+table{border-collapse:collapse;width:100%;font-size:12.5px}
+th,td{text-align:left;padding:6px 9px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);font-weight:500}
+td.num,th.num{text-align:right;font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.scroll-x{overflow-x:auto;-webkit-overflow-scrolling:touch}
+label.field{display:grid;gap:4px;font-size:12px;color:var(--ink-2);min-width:0}
+label.field span{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+select,input[type=date],input[type=number],input[type=text]{font:500 13px/1.3 var(--f-body);color:var(--ink);background:var(--surface);
+  border:1px solid var(--line);border-radius:7px;padding:7px 8px;width:100%;min-width:0}
+.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(132px,1fr));gap:10px}
+.switch{display:flex;gap:9px;align-items:flex-start;font-size:12.5px;color:var(--ink-2);cursor:pointer;padding:7px 0}
+.switch input{margin:2px 0 0;accent-color:var(--accent);flex:0 0 auto}
+.switch b{color:var(--ink);font-weight:600;display:block;font-size:12.5px}
+.btn{background:var(--accent);color:#fff;border:0;border-radius:8px;padding:8px 13px;font:600 12.5px/1 var(--f-body);cursor:pointer}
+.btn.ghost{background:transparent;color:var(--ink-2);border:1px solid var(--line)}
+.btn:hover{filter:brightness(1.06)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+
+/* charts */
+.charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(248px,1fr));gap:16px;margin-top:16px}
+.chart-svg{display:block;width:100%;height:auto;max-width:100%;overflow:visible}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--ink-2);padding:0 14px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.tt{position:absolute;pointer-events:none;background:var(--surface);border:1px solid var(--line-2);border-radius:8px;
+  box-shadow:var(--shadow);padding:7px 9px;font-family:var(--f-mono);font-size:11px;color:var(--ink);z-index:20;min-width:120px}
+.tt .tt-h{font-size:10.5px;color:var(--ink-3);margin-bottom:4px}
+.tt .tt-r{display:flex;justify-content:space-between;gap:12px}
+.rel{position:relative}
+details>summary{cursor:pointer;font-size:12.5px;color:var(--ink-2);padding:8px 0;list-style:none}
+details>summary::-webkit-details-marker{display:none}
+details>summary::before{content:"▸ ";color:var(--ink-3)}
+details[open]>summary::before{content:"▾ "}
+.prose{font-size:13px;color:var(--ink-2);line-height:1.62;max-width:68ch}
+.prose h3{font-size:13.5px;color:var(--ink);margin:16px 0 5px}
+.prose code{font-family:var(--f-mono);font-size:11.5px;background:var(--sunken);padding:1px 4px;border-radius:4px;color:var(--ink)}
+.prose ul{padding-left:18px;margin:6px 0}
+.prose li{margin:3px 0}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.001ms!important;transition-duration:.001ms!important}}
+</style>
+
+<header class="top">
+  <div class="top-in">
+    <div class="brand">
+      <h1>Tub Garden</h1>
+      <span class="sub" id="brandSub">cucumber + pea · 4.5 L tub</span>
+    </div>
+    <div class="spacer"></div>
+    <div class="daybox"><span>day</span><b id="dayNum">0</b><span id="dayDate">—</span></div>
+    <button class="iconbtn" id="btnToday" title="Jump to today">Today</button>
+    <button class="iconbtn" id="btnPlay" aria-pressed="false" title="Play the season">▶ Play</button>
+    <button class="iconbtn" id="btnTheme" title="Switch light / dark">◐</button>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="grid">
+    <!-- LEFT: the tub -->
+    <div class="card" style="overflow:hidden">
+      <div class="stage-wrap rel">
+        <div class="stage-tabs">
+          <button class="chip" id="tabBoth" aria-pressed="true">Both</button>
+          <button class="chip" id="tabCuke" aria-pressed="false"><i class="dot" style="background:var(--cuke)"></i>Cucumber</button>
+          <button class="chip" id="tabPea" aria-pressed="false"><i class="dot" style="background:var(--pea)"></i>Pea</button>
+        </div>
+        <svg id="tub" viewBox="0 0 680 520" role="img" aria-labelledby="tubTitle tubDesc">
+          <title id="tubTitle">Tub cross-section</title>
+          <desc id="tubDesc">Simulated cucumber and pea plants in a repurposed protein tub, with roots, soil moisture and the day's weather.</desc>
+        </svg>
+        <div class="stage-cap">
+          <span class="pill" id="capWeather">—</span>
+          <span class="pill" id="capLight">—</span>
+        </div>
+      </div>
+      <div class="transport">
+        <input type="range" id="scrub" min="0" max="150" value="0" step="1" aria-label="Day of the season">
+        <span class="stamp" id="scrubStamp">—</span>
+      </div>
+    </div>
+
+    <!-- RIGHT: readouts + actions -->
+    <div class="stack">
+      <div class="readouts" id="readouts"></div>
+
+      <div class="card">
+        <header><h2>What this day needs</h2><span class="note" id="alertStamp"></span></header>
+        <div class="pad" style="padding-top:10px"><div class="alerts" id="alerts"></div></div>
+      </div>
+
+      <div class="card">
+        <header><h2>Your setup</h2><span class="note">drives every number on this page</span></header>
+        <div class="pad">
+          <div class="fields">
+            <label class="field"><span>Sown on</span><input type="date" id="cfgSown"></label>
+            <label class="field"><span>Climate</span><select id="cfgCity"></select></label>
+            <label class="field"><span>Tub volume</span><select id="cfgVol">
+              <option value="2.3">2.3 L (1 kg tub)</option><option value="3.5">3.5 L (1.5 kg tub)</option>
+              <option value="4.5" selected>4.5 L (2 kg tub)</option><option value="7">7 L (4 kg tub)</option>
+              <option value="12">12 L (grow bag)</option><option value="20">20 L (half drum)</option></select></label>
+            <label class="field"><span>Sun it gets</span><select id="cfgSite">
+              <option value="terrace">Open terrace / full sun</option>
+              <option value="balcony" selected>Balcony, half day sun</option>
+              <option value="window">Bright window, no direct sun</option>
+              <option value="indoor">Indoor room</option></select></label>
+            <label class="field"><span>Cucumber plants</span><input type="number" id="cfgNCuke" min="0" max="8" step="1" value="2"></label>
+            <label class="field"><span>Pea plants</span><input type="number" id="cfgNPea" min="0" max="20" step="1" value="4"></label>
+            <label class="field"><span>Vermicompost</span><select id="cfgVc">
+              <option value="0">None — potting soil only</option>
+              <option value="0.15">A handful (~15%)</option>
+              <option value="0.25" selected>About a quarter of the mix</option>
+              <option value="0.4">Nearly half the mix</option></select></label>
+            <label class="field"><span>Watering habit</span><select id="cfgDisc">
+              <option value="1">Every day without fail</option>
+              <option value="0.85" selected>Most days</option>
+              <option value="0.6">When I remember</option>
+              <option value="0.35">Weekends only</option></select></label>
+          </div>
+          <div style="display:grid;gap:0;margin-top:6px;border-top:1px solid var(--line)">
+            <label class="switch"><input type="checkbox" id="cfgHoles"><span><b>Drainage holes drilled in the base</b>Without them the tub holds a layer of standing water and the roots suffocate.</span></label>
+            <label class="switch"><input type="checkbox" id="cfgSupport" checked><span><b>A stake or net to climb</b>Cucumber and pea are both climbers; on the floor they sprawl and the fruit rots.</span></label>
+            <label class="switch"><input type="checkbox" id="cfgPollinate"><span><b>I hand-pollinate the cucumber</b>Open female flowers, dusted with a male flower each morning. On a balcony with no bees this is the difference between fruit and no fruit.</span></label>
+            <label class="switch"><input type="checkbox" id="cfgPests" checked><span><b>Model pests and disease</b>Powdery mildew on cucumber, aphids on pea, driven by the weather in the model.</span></label>
+          </div>
+          <div class="row" style="margin-top:10px"><button class="btn ghost" id="btnReset">Reset to defaults</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PHENOLOGY -->
+  <div class="card" style="margin-top:16px">
+    <header><h2>Stages, as the model dates them</h2><span class="note">thermal time from your sowing date and climate</span></header>
+    <div class="pad"><div class="pheno" id="pheno"></div>
+      <div class="pheno-scale" style="margin-top:7px"><span></span><span class="ticks" id="phenoTicks"></span></div>
+    </div>
+  </div>
+
+  <!-- CHARTS -->
+  <div class="charts">
+    <div class="card rel">
+      <header><h2>Vine length</h2><span class="note">cm, tallest plant of each crop</span></header>
+      <div class="legend" id="legGrowth" style="margin:8px 0 2px"></div>
+      <div class="pad rel" style="padding-top:4px"><svg id="chGrowth" class="chart-svg" viewBox="0 0 480 240" role="img" aria-label="Simulated vine length of cucumber and pea over the season"></svg></div>
+      <div class="pad" style="padding-top:0">
+        <details><summary>Show the numbers</summary><div class="scroll-x"><table id="tblGrowth"></table></div></details>
+      </div>
+    </div>
+    <div class="card rel">
+      <header><h2>Harvest</h2><span class="note">grams picked, cumulative</span></header>
+      <div class="legend" id="legYield" style="margin:8px 0 2px"></div>
+      <div class="pad rel" style="padding-top:4px"><svg id="chYield" class="chart-svg" viewBox="0 0 480 240" role="img" aria-label="Cumulative simulated harvest weight for cucumber and pea"></svg></div>
+      <div class="pad" style="padding-top:0"><p class="prose" id="yieldNote" style="font-size:12.5px;margin:0"></p></div>
+    </div>
+  </div>
+
+  <div class="charts">
+    <div class="card rel"><header><h2>Water in the tub</h2><span class="note">% of what the mix can hold</span></header>
+      <div class="pad rel"><svg id="chWater" class="chart-svg" viewBox="0 0 480 150" role="img" aria-label="Plant-available water in the tub over the season"></svg></div></div>
+    <div class="card rel"><header><h2>Nitrogen supply</h2><span class="note">met vs. demanded</span></header>
+      <div class="pad rel"><svg id="chN" class="chart-svg" viewBox="0 0 480 150" role="img" aria-label="Nitrogen nutrition index over the season"></svg></div></div>
+    <div class="card rel"><header><h2>Temperature</h2><span class="note">daily high and low, °C</span></header>
+      <div class="pad rel"><svg id="chTemp" class="chart-svg" viewBox="0 0 480 150" role="img" aria-label="Daily high and low temperature over the season"></svg></div></div>
+  </div>
+
+  <!-- LOG / CALIBRATION -->
+  <div class="grid" style="margin-top:16px">
+    <div class="card">
+      <header><h2>Measure the real plant</h2><span class="note">kept in this browser</span></header>
+      <div class="pad">
+        <p class="prose" style="margin:0 0 10px">Every few days, measure the longest vine and count the leaves. The model draws your readings over its own curve and reports how far off it is — that is the only honest test of a simulation like this.</p>
+        <div class="fields">
+          <label class="field"><span>Date</span><input type="date" id="obsDate"></label>
+          <label class="field"><span>Crop</span><select id="obsCrop"><option value="cuke">Cucumber</option><option value="pea">Pea</option></select></label>
+          <label class="field"><span>Vine length cm</span><input type="number" id="obsLen" min="0" step="0.5" placeholder="e.g. 24"></label>
+          <label class="field"><span>Leaves</span><input type="number" id="obsLeaf" min="0" step="1" placeholder="e.g. 6"></label>
+        </div>
+        <div class="row" style="margin-top:10px"><button class="btn" id="btnObsAdd">Add reading</button>
+          <button class="btn ghost" id="btnObsClear">Clear all</button></div>
+        <div class="scroll-x" style="margin-top:12px"><table id="tblObs"></table></div>
+        <div id="fitBox" style="margin-top:10px"></div>
+      </div>
+    </div>
+    <div class="card">
+      <header><h2>How the model works</h2><span class="note">and where it will be wrong</span></header>
+      <div class="pad prose" id="methods"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* ============================================================================
+   TUB GARDEN — a mechanistic growth model for a cucumber + pea container
+   ----------------------------------------------------------------------------
+   Daily loop: weather -> reference ET and light -> water balance -> nitrogen
+   mineralisation -> intercepted light -> potential biomass -> stress -> actual
+   biomass -> allocation -> geometry -> phenology -> fruit -> pests.
+   Everything is deterministic: same settings, same season, same numbers.
+   ========================================================================== */
+
+/* ---------- small helpers ---------- */
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+const lerp=(a,b,t)=>a+(b-a)*t;
+const fmt=(v,d=0)=>Number.isFinite(v)?v.toFixed(d):"—";
+const DAY=86400000;
+function hash32(n){n|=0;n=Math.imul(n^61,0x27d4eb2d);n^=n>>>15;n=Math.imul(n,0x85ebca6b);n^=n>>>13;n=Math.imul(n,0xc2b2ae35);n^=n>>>16;return (n>>>0)/4294967296;}
+function noise(i,salt){return hash32(i*7919+salt*104729)*2-1;}
+function smoothNoise(i,salt){return (noise(i-1,salt)+2*noise(i,salt)+noise(i+1,salt))/4;}
+function isoDate(d){return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10);}
+function parseISO(s){const[y,m,d]=s.split("-").map(Number);return new Date(y,m-1,d);}
+function addDays(d,n){return new Date(d.getFullYear(),d.getMonth(),d.getDate()+n);}
+function fmtDate(d){return d.toLocaleDateString(undefined,{day:"numeric",month:"short"});}
+function fmtDateY(d){return d.toLocaleDateString(undefined,{day:"numeric",month:"short",year:"2-digit"});}
+function doy(d){return Math.floor((d-new Date(d.getFullYear(),0,0))/DAY);}
+
+/* ---------- climate normals (monthly mean daily max / min °C, mean RH %,
+     rain days per month). Sources: IMD 1991-2020 station normals, rounded. --- */
+const CLIMATE={
+ delhi:{name:"Delhi NCR",lat:28.6,coastal:false,
+   tx:[20.8,24.0,30.0,36.3,39.5,38.8,35.0,33.6,34.0,32.9,28.5,22.9],
+   tn:[7.6,10.3,15.4,21.5,26.0,28.0,27.2,26.4,24.4,19.2,12.8,8.2],
+   rh:[64,56,45,33,33,47,70,76,70,55,53,61], rd:[1,2,1,1,2,5,11,12,6,1,0,1]},
+ mumbai:{name:"Mumbai",lat:19.1,coastal:true,
+   tx:[31.0,31.5,33.0,33.2,33.4,32.1,30.0,29.6,30.4,33.2,34.0,33.0],
+   tn:[17.4,18.6,22.0,24.8,27.1,26.3,25.2,24.6,24.4,23.5,21.3,19.0],
+   rh:[62,65,70,73,74,82,88,88,85,76,66,62], rd:[0,0,0,0,1,13,22,21,14,4,1,0]},
+ bengaluru:{name:"Bengaluru",lat:12.97,coastal:false,
+   tx:[27.3,30.0,32.8,34.0,33.1,29.2,27.9,27.8,28.3,28.0,26.8,26.0],
+   tn:[15.3,16.6,19.1,21.3,21.1,20.2,19.8,19.5,19.4,19.3,17.3,15.6],
+   rh:[57,49,46,55,62,69,73,74,73,75,72,67], rd:[0,0,1,3,7,7,9,10,9,10,5,2]},
+ hyderabad:{name:"Hyderabad",lat:17.4,coastal:false,
+   tx:[28.6,31.8,35.2,37.6,38.8,34.4,31.0,30.0,30.6,30.4,28.8,27.6],
+   tn:[14.7,17.0,20.3,24.0,26.0,24.0,22.6,22.2,22.0,20.6,17.0,14.2],
+   rh:[53,44,37,36,42,61,73,75,73,66,60,56], rd:[0,0,1,2,4,11,15,15,12,7,2,0]},
+ chennai:{name:"Chennai",lat:13.1,coastal:true,
+   tx:[29.0,30.8,32.8,34.8,37.4,37.2,35.3,34.6,34.0,32.0,29.8,28.6],
+   tn:[20.6,21.2,23.2,26.0,27.6,27.2,26.1,25.5,25.2,24.0,22.6,21.2],
+   rh:[72,71,71,70,65,58,61,64,68,76,79,77], rd:[1,0,0,1,2,4,6,8,9,14,13,8]},
+ kolkata:{name:"Kolkata",lat:22.6,coastal:false,
+   tx:[26.3,29.4,34.0,36.0,35.8,34.1,32.3,32.0,32.2,31.8,29.8,26.8],
+   tn:[13.8,17.0,21.6,25.0,26.4,26.6,26.2,26.2,26.0,23.8,18.6,14.2],
+   rh:[66,60,58,66,72,80,84,85,83,77,70,68], rd:[1,1,2,4,8,14,19,19,14,6,1,0]},
+ pune:{name:"Pune",lat:18.5,coastal:false,
+   tx:[30.4,32.8,35.8,37.6,37.0,31.8,28.4,27.8,29.8,31.8,30.2,29.2],
+   tn:[11.6,13.0,17.0,20.4,22.6,22.6,21.8,21.2,20.6,18.4,14.6,11.8],
+   rh:[50,42,37,38,46,68,80,80,74,63,57,54], rd:[0,0,0,1,3,12,16,14,10,5,2,0]},
+ ahmedabad:{name:"Ahmedabad",lat:23.0,coastal:false,
+   tx:[28.8,31.8,36.4,39.8,41.2,38.4,33.8,32.0,34.2,36.2,33.4,30.0],
+   tn:[12.0,14.6,19.6,24.0,26.8,27.6,26.2,25.0,24.4,21.4,16.6,13.0],
+   rh:[46,40,33,34,41,58,76,79,69,51,45,46], rd:[0,0,0,0,1,5,12,11,5,1,0,0]},
+ lucknow:{name:"Lucknow",lat:26.8,coastal:false,
+   tx:[23.0,26.6,33.0,38.2,40.2,38.4,34.0,33.2,33.4,32.8,29.4,25.2],
+   tn:[8.4,10.8,15.6,21.4,25.6,27.4,26.6,26.2,25.0,20.2,13.6,9.2],
+   rh:[70,62,47,34,36,50,74,79,76,65,63,70], rd:[1,1,1,1,2,6,14,14,8,2,0,1]},
+ bhubaneswar:{name:"Bhubaneswar",lat:20.3,coastal:true,
+   tx:[28.4,31.6,35.0,36.8,36.6,34.6,32.2,31.8,32.0,31.8,29.8,28.2],
+   tn:[15.6,18.6,22.4,25.6,26.4,26.2,25.6,25.4,25.2,23.2,18.6,15.4],
+   rh:[66,62,62,66,68,76,82,84,83,78,70,67], rd:[1,1,1,2,4,11,16,16,12,6,1,0]},
+ chandigarh:{name:"Chandigarh / Punjab",lat:30.7,coastal:false,
+   tx:[19.2,22.4,28.2,35.0,38.6,38.0,33.4,32.4,32.6,31.4,26.8,21.4],
+   tn:[6.2,8.6,13.6,19.2,24.0,26.4,25.6,25.0,22.6,16.8,10.4,6.8],
+   rh:[68,62,52,37,36,49,74,79,71,56,56,65], rd:[2,2,2,2,3,6,14,14,7,1,0,1]},
+ jaipur:{name:"Jaipur",lat:26.9,coastal:false,
+   tx:[22.6,26.0,31.8,37.4,40.4,39.0,34.4,32.6,34.0,33.6,29.2,24.4],
+   tn:[8.4,11.0,16.2,22.0,26.4,28.0,26.6,25.4,23.8,19.0,13.2,9.4],
+   rh:[58,50,38,28,29,42,65,73,63,46,47,55], rd:[1,1,1,1,2,5,11,11,5,1,0,1]}
+};
+
+/* ---------- daily weather from normals + reproducible variability ---------- */
+function weatherOn(cityKey,date){
+  const c=CLIMATE[cityKey], j=doy(date), salt=cityKey.charCodeAt(0)+cityKey.length*31;
+  const idx=(j/365.25)*12-0.5;               // month centres at mid-month
+  const i0=Math.floor(idx), f=idx-i0;
+  const m=k=>((k%12)+12)%12;
+  const sm=t=>t*t*(3-2*t);                   // smoothstep between month centres
+  const pick=a=>lerp(a[m(i0)],a[m(i0+1)],sm(f));
+  const key=Math.floor(date.getTime()/DAY);
+  let tx=pick(c.tx)+smoothNoise(key,salt)*3.4;
+  let tn=pick(c.tn)+smoothNoise(key,salt+7)*2.6;
+  const rhBase=pick(c.rh);
+  const wetness=clamp(pick(c.rd)/22,0,1);
+  const rain=hash32(key*31+salt)<wetness*0.95;
+  if(rain){tx-=clamp(3.5*wetness,0,5);tn+=1.0;}
+  let rh=clamp(rhBase+(rain?14:-3)+smoothNoise(key,salt+13)*7,18,98);
+  if(tx-tn<2.5)tx=tn+2.5;
+  return {tmax:tx,tmin:tn,tmean:(tx+tn)/2,rh,rain,cloud:rain?0.72:clamp(0.18+wetness*0.5+smoothNoise(key,salt+19)*0.14,0,0.9)};
+}
+
+/* Extraterrestrial radiation Ra, MJ m-2 d-1 (FAO-56 eq. 21) */
+function raMJ(lat,j){
+  const phi=lat*Math.PI/180;
+  const dr=1+0.033*Math.cos(2*Math.PI*j/365);
+  const dec=0.409*Math.sin(2*Math.PI*j/365-1.39);
+  let x=-Math.tan(phi)*Math.tan(dec); x=clamp(x,-1,1);
+  const ws=Math.acos(x);
+  return (24*60/Math.PI)*0.082*dr*(ws*Math.sin(phi)*Math.sin(dec)+Math.cos(phi)*Math.cos(dec)*Math.sin(ws));
+}
+/* Hargreaves: solar radiation and reference evapotranspiration */
+function radiationAndET0(cityKey,date,w){
+  const c=CLIMATE[cityKey], j=doy(date), Ra=raMJ(c.lat,j);
+  const krs=c.coastal?0.19:0.17;
+  const Rs=clamp(krs*Math.sqrt(Math.max(w.tmax-w.tmin,1))*Ra,0.08*Ra,0.78*Ra);
+  const et0=0.0023*(Ra/2.45)*(w.tmean+17.8)*Math.sqrt(Math.max(w.tmax-w.tmin,1));
+  const dliOpen=Rs*0.45*4.57;               // MJ -> mol PAR m-2 d-1
+  return {Ra,Rs,et0:clamp(et0,0.4,14),dliOpen};
+}
+/* what fraction of open-sky light actually reaches the tub */
+const SITE={terrace:{f:0.92,label:"open terrace"},balcony:{f:0.42,label:"half-day balcony"},
+            window:{f:0.14,label:"bright window"},indoor:{f:0.045,label:"indoor room"}};
+
+/* ---------- crop parameters ----------
+   GDD thresholds are cumulative from sowing, in the crop's own base. Values sit
+   inside the ranges reported for Indian field/poly conditions for a mid-season
+   desi cucumber and an early garden pea (Arkel-type). ------------------------ */
+const CROPS={
+ cuke:{key:"cuke",name:"Cucumber",hindi:"Khira",color:"var(--cuke)",
+   tbase:10,topt:28,tmax:38,tcut:35,chillBelow:12,killBelow:2.5,
+   seedG:0.032,                       // one seed, grams
+   gdd:{emerge:55,leaf1:120,vine:270,male:430,female:530,fruitSet:580,harvest:790,decline:1500,end:1900},
+   rue:0.78,                          // g dry matter per mol intercepted PAR
+   sla:300,                           // cm2 leaf per g leaf dry matter
+   internode:7.2,                     // cm per node at full light
+   phyllochron:38,                    // GDD per new node
+   dliSat:13,                         // mol/m2/d at which light stops limiting
+   leafArea0:9,stemLen0:4.5,nodes0:1, // the seedling the day it breaks the surface
+   leafPerNode:180,leafRef:1500,      // cm2 a mature node carries, and the size it gets there
+   nConcVeg:0.040,nConcRep:0.028,
+   volPerG:0.27,                      // L of root volume wanted per g of plant dry matter
+   fruitGDD:185,fruitFreshG:135,fruitDM:0.038,flowerLA:150,
+   selfPollinating:false,
+   kcMax:1.15,
+   heatAbortTmax:40, coldStop:12},
+ pea:{key:"pea",name:"Pea",hindi:"Matar",color:"var(--pea)",
+   tbase:4.4,topt:17,tmax:30,tcut:28,chillBelow:-2,killBelow:-4,
+   seedG:0.22,
+   gdd:{emerge:110,leaf1:190,vine:320,male:600,female:640,fruitSet:700,harvest:1020,decline:1400,end:1750},
+   rue:0.66,
+   sla:230,
+   internode:4.6,
+   phyllochron:46,
+   dliSat:10,
+   leafArea0:7,stemLen0:7,nodes0:2,
+   leafPerNode:60,leafRef:400,
+   nConcVeg:0.045,nConcRep:0.030,      // pea fixes some N itself, handled below
+   volPerG:0.16,
+   fruitGDD:230,fruitFreshG:5.6,fruitDM:0.19,flowerLA:55,
+   selfPollinating:true,
+   kcMax:1.05,
+   heatAbortTmax:32, coldStop:4.4,
+   fixesN:true}
+};
+const STAGES=[
+ {k:"sow",label:"Sown"},{k:"emerge",label:"Seedling up"},{k:"leaf1",label:"First true leaf"},
+ {k:"vine",label:"Running / vining"},{k:"male",label:"First flower"},{k:"female",label:"Female flower"},
+ {k:"fruitSet",label:"Fruit set"},{k:"harvest",label:"First pick"},{k:"decline",label:"Winding down"}];
+</script>
+
+<script>
+"use strict";
+/* ============================ THE MODEL ============================ */
+function substrate(cfg){
+  const Vcm3=cfg.volL*1000;
+  const d=Math.cbrt(Vcm3/0.9817), h=1.25*d;           // tub ~ cylinder, h = 1.25 d
+  const surfaceM2=Math.PI*Math.pow(d/200,2);
+  const thCC=0.44+0.08*cfg.vcFrac, thPWP=0.19, thSat=0.72;
+  return {d,h,surfaceM2,
+    holdML:Vcm3*(thCC-thPWP),                          // plant-available water
+    perchML:cfg.holes?0:Vcm3*(thSat-thCC),             // standing water with no holes
+    depth:h};
+}
+function nitrogenPool(cfg){
+  const Vcm3=cfg.volL*1000;
+  const vcG=Vcm3*cfg.vcFrac*0.62;                      // vermicompost bulk density ~0.62 g/cm3
+  const soilG=Vcm3*(1-cfg.vcFrac)*0.38;
+  return {organicN: vcG*0.015*1000 + soilG*0.004*1000, // mg N
+          mineralN: vcG*0.0012*1000 + soilG*0.0004*1000};
+}
+function fTemp(c,tm){
+  if(tm<=c.tbase)return 0;
+  if(tm<c.topt)return (tm-c.tbase)/(c.topt-c.tbase);
+  if(tm<c.tmax)return 1-0.85*(tm-c.topt)/(c.tmax-c.topt);
+  return Math.max(0,0.15-(tm-c.tmax)*0.03);
+}
+function newPlant(c){
+  return {alive:true,up:false,gdd:0,chill:0,
+    leafDM:0,stemDM:0,rootDM:0,fruitPool:0,seedDM:c.seedG*0.9,
+    leafArea:0,stemLen:0,nodes:0,reserve:0,vig:0,
+    fruits:[],flowers:0,openFemale:0,aborted:0,picked:0,yieldG:0,
+    pmSev:0,aphidSev:0,chlorosis:0,nIdx:1,fW:1,fRoot:1,damage:0,deadWhy:""};
+}
+function alloc(c,gdd){
+  const g=c.gdd;
+  if(gdd<g.leaf1)   return {leaf:.52,stem:.13,root:.35,fruit:0};
+  if(gdd<g.vine)    return {leaf:.47,stem:.21,root:.32,fruit:0};
+  if(gdd<g.male)    return {leaf:.42,stem:.28,root:.30,fruit:0};
+  if(gdd<g.fruitSet)return {leaf:.35,stem:.25,root:.22,fruit:.18};
+  if(gdd<g.decline) return {leaf:.26,stem:.16,root:.08,fruit:.50};
+  return {leaf:.08,stem:.06,root:.06,fruit:.80};
+}
+function stageOf(c,gdd,up){
+  if(!up)return 0;
+  const g=c.gdd,o=[["decline",8],["harvest",7],["fruitSet",6],["female",5],["male",4],["vine",3],["leaf1",2]];
+  for(const[k,i]of o) if(gdd>=g[k])return i;
+  return 1;
+}
+
+function simulate(cfg){
+  const sub=substrate(cfg), np=nitrogenPool(cfg);
+  const site=SITE[cfg.site], footprintCap=({terrace:.90,balcony:.45,window:.22,indoor:.14})[cfg.site];
+  const counts={cuke:cfg.nCuke,pea:cfg.nPea};
+  const total=Math.max(1,cfg.nCuke+cfg.nPea);
+  const plants={cuke:newPlant(CROPS.cuke),pea:newPlant(CROPS.pea)};
+  let waterML=sub.holdML*0.9, perchML=0, satDays=0;
+  let organicN=np.organicN, mineralN=np.mineralN;
+  const sown=parseISO(cfg.sown);
+  const out=[];
+  const seedSalt=cfg.sown.length+cfg.volL*10+cfg.site.length;
+
+  for(let d=0;d<=cfg.horizon;d++){
+    const date=addDays(sown,d);
+    const w=weatherOn(cfg.city,date);
+    const R=radiationAndET0(cfg.city,date,w);
+    const dli=R.dliOpen*site.f*(1-0.20*w.cloud);
+    const alerts=[];
+
+    /* ---- canopy & interception (shared footprint) ---- */
+    let laTot=0; for(const k in plants) if(counts[k]>0) laTot+=plants[k].leafArea*counts[k];
+    const laM2=laTot/10000;
+    const footprint=clamp(Math.max(sub.surfaceM2,laM2*2.0),sub.surfaceM2,footprintCap);
+    const LAI=laM2/footprint;
+    const fInt=1-Math.exp(-0.85*LAI);
+    const molIntercepted=dli*footprint*fInt;
+
+    /* ---- water balance ---- */
+    const kc=clamp(0.35+0.80*fInt,0.35,1.15);
+    const etArea=Math.max(sub.surfaceM2*0.55,footprint*fInt)+sub.surfaceM2*0.35*(1-fInt);
+    let etcML=R.et0*kc*etArea*1000;
+    if(w.rain&&cfg.site==="terrace")waterML+=Math.min(sub.holdML*0.5,R.et0*2*sub.surfaceM2*1000);
+    const wantsWater=(waterML/sub.holdML)<0.62;
+    const willWater=hash32(Math.floor(date.getTime()/DAY)*13+seedSalt)<cfg.discipline;
+    let appliedML=0;
+    if((wantsWater||cfg.discipline>=0.999)&&willWater){
+      appliedML=Math.max(150,(sub.holdML-waterML)+0.18*sub.holdML);
+      waterML+=appliedML;
+    }
+    let drainedML=0;
+    if(waterML>sub.holdML){
+      const over=waterML-sub.holdML; waterML=sub.holdML;
+      if(cfg.holes){drainedML=over;}
+      else{perchML=Math.min(sub.perchML,perchML+over);drainedML=Math.max(0,over-(sub.perchML-perchML));}
+    }
+    if(perchML>0){satDays++;perchML=Math.max(0,perchML-R.et0*sub.surfaceM2*300);}
+    else satDays=Math.max(0,satDays-1);
+    waterML=Math.max(0,waterML-etcML);
+    const aw=clamp(waterML/sub.holdML,0,1);
+    const fW=clamp(aw/0.55,0,1);
+    const fO2=clamp(1-0.09*satDays,0.18,1);
+
+    /* ---- nitrogen ---- */
+    const kMin=0.0030*Math.pow(2,(w.tmean-25)/10)*clamp(aw/0.6,0.05,1)*(satDays>2?0.4:1);
+    const minzd=organicN*clamp(kMin,0,0.02);
+    organicN-=minzd; mineralN+=minzd;
+    if(drainedML>0&&cfg.holes) mineralN*=clamp(1-0.5*(drainedML/(sub.holdML+drainedML)),0.6,1);
+
+    /* ---- growth, per crop ---- */
+    let demandN=0; const gains={};
+    for(const k in plants){
+      const c=CROPS[k],p=plants[k];
+      if(counts[k]<=0||!p.alive){gains[k]=0;continue;}
+      const dayGdd=Math.max(0,(Math.min(w.tmax,c.tcut)+Math.max(w.tmin,c.tbase))/2-c.tbase);
+      if(!p.up){
+        if(aw>0.12) p.gdd+=dayGdd;
+        if(!cfg.holes&&satDays>5&&p.gdd<c.gdd.emerge){p.alive=false;p.deadWhy="seed rotted in waterlogged mix";}
+        if(p.gdd>=c.gdd.emerge){
+          p.up=true;
+          p.leafArea=c.leafArea0; p.stemLen=c.stemLen0; p.nodes=c.nodes0;
+          p.leafDM=c.leafArea0/600; p.stemDM=p.seedDM*0.18; p.rootDM=p.seedDM*0.25;
+          p.reserve=p.seedDM*0.50;                  // cotyledon reserves still to be drawn on
+        }
+        gains[k]=0; p.dayGdd=dayGdd; p.dliPlant=dli; p.fT=fTemp(c,w.tmean); p.fW=fW; continue;
+      }
+      p.gdd+=dayGdd; p.dayGdd=dayGdd;
+      const laShare=laTot>0?(p.leafArea*counts[k])/laTot:1/total;
+      const molPlant=counts[k]>0?molIntercepted*laShare/counts[k]:0;
+      const dliPlant=dli;
+      const fT=fTemp(c,w.tmean);
+      const perPlantL=cfg.volL/total;
+      const totDM=p.leafDM+p.stemDM+p.rootDM+p.fruitPool;
+      p.fRoot=Math.pow(clamp(perPlantL/Math.max(c.volPerG*totDM,0.02),0,1),0.6);
+      const fH=clamp(1-0.85*p.pmSev-0.55*p.aphidSev-p.damage,0.02,1);
+      const pot=molPlant*c.rue;
+      gains[k]=pot*fT*fW*p.nIdx*p.fRoot*fO2*fH;
+      p.fT=fT;p.fW=fW;p.dliPlant=dliPlant;
+      const a=alloc(c,p.gdd);
+      const conc=p.gdd<c.gdd.male?c.nConcVeg:c.nConcRep;
+      let need=gains[k]*conc*1000*counts[k];
+      if(c.fixesN&&d>24) need*=0.42;              // rhizobial fixation covers most of a pea's own N
+      demandN+=need; p._need=need; p._alloc=a;
+    }
+    const supplyRatio=demandN>0?clamp(mineralN/demandN,0,1):1;
+    mineralN=Math.max(0,mineralN-demandN*supplyRatio);
+
+    /* ---- apply growth ---- */
+    for(const k in plants){
+      const c=CROPS[k],p=plants[k];
+      if(counts[k]<=0||!p.alive||!p.up)continue;
+      p.nIdx=clamp(p.nIdx*0.72+(0.35+0.65*supplyRatio)*0.28,0.18,1);
+      p.chlorosis=clamp(1-p.nIdx,0,1);
+      let g=(gains[k]||0)*(0.5+0.5*supplyRatio);
+      if(p.reserve>0){const rel=Math.min(p.reserve,p.seedDM*0.5/7);p.reserve-=rel;g+=rel;}
+      const a=p._alloc||alloc(c,p.gdd);
+      const dLeaf=g*a.leaf;
+      p.leafDM+=dLeaf; p.stemDM+=g*a.stem; p.rootDM+=g*a.root; p.fruitPool+=g*a.fruit;
+      const lightF=clamp(p.dliPlant/c.dliSat,0,1);
+      const slaEff=c.sla*(1+0.55*(1-lightF));
+      p.leafArea+=dLeaf*slaEff;
+      /* shoot architecture: nodes from thermal time, internode from light and vigour */
+      const vig=clamp((p.fT||0)*fW*p.nIdx*p.fRoot*fO2*clamp(1-0.85*p.pmSev-0.55*p.aphidSev-p.damage,0,1)*lightF,0,1);
+      p.vig=vig;
+      const perNode=c.leafPerNode*clamp(Math.pow(Math.max(p.leafArea,1)/c.leafRef,0.45),0.10,1.25);
+      const dNodes=Math.max(0,dLeaf*slaEff/perNode);
+      const interEff=c.internode*(1+0.70*(1-lightF))*(0.60+0.40*fW);
+      p.nodes+=dNodes; p.stemLen+=dNodes*interEff;
+      if(p.gdd>c.gdd.decline){p.leafDM*=0.984;p.leafArea*=0.984;}
+
+      /* cold / heat damage */
+      if(w.tmin<c.chillBelow){p.chill+=(c.chillBelow-w.tmin);
+        if(p.chill>45)p.damage=clamp(p.damage+0.004*clamp(c.chillBelow-w.tmin,0,10),0,0.92);}
+      else p.chill=Math.max(0,p.chill-3);
+      if(w.tmin<c.killBelow){p.alive=false;p.deadWhy="killed by cold";}
+      if(satDays>3){p.rootDM*=0.985;if(satDays>40){p.alive=false;p.deadWhy="roots drowned in a tub that cannot drain";}}
+      if(w.tmax>c.tmax+5)p.damage=clamp(p.damage+0.012,0,0.92);
+
+      /* flowers and fruit */
+      const key=Math.floor(date.getTime()/DAY);
+      const flowerGate=c.selfPollinating?c.gdd.male:c.gdd.female;
+      if(p.gdd>=flowerGate&&p.gdd<c.gdd.end&&p.leafArea>c.flowerLA){
+        const vigour=clamp(p.vig,0,1);
+        p.flowers+=dNodes*(k==="cuke"?0.55:0.90)*(0.40+0.60*vigour);
+        let newFlowers=Math.floor(p.flowers); p.flowers-=newFlowers;
+        let setP;
+        if(c.selfPollinating){ setP=w.tmax>c.heatAbortTmax?0.12:0.88; }
+        else {
+          const base={terrace:0.70,balcony:0.20,window:0.04,indoor:0.02}[cfg.site];
+          setP=cfg.handPollinate?0.82:base;
+          if(w.tmax>c.heatAbortTmax)setP*=0.35;
+        }
+        for(let i=0;i<newFlowers;i++){
+          if(hash32(key*97+i*13+seedSalt)<setP) p.fruits.push({gdd:0,dm:0});
+          else p.aborted++;
+        }
+      }
+      /* fruit filling, with abortion when the plant cannot feed them */
+      const perFruitDM=c.fruitFreshG*c.fruitDM;
+      p.fruitPool=Math.min(p.fruitPool,perFruitDM*3.5);
+      if(p.fruits.length){
+        const need=p.fruits.length*perFruitDM*(p.dayGdd/c.fruitGDD);
+        const spend=Math.min(p.fruitPool,need);
+        const share=spend/p.fruits.length;
+        for(const f of p.fruits){f.gdd+=p.dayGdd;f.dm+=share;}
+        p.fruitPool-=spend;
+        /* a fruit starved for a week behind its thermal age yellows and drops */
+        const keep=[];
+        for(const f of p.fruits){
+          const expect=perFruitDM*clamp(f.gdd/c.fruitGDD,0.02,1);
+          f.lag=(f.dm/expect<0.55)?(f.lag||0)+1:0;
+          if(f.lag>6&&f.gdd>c.fruitGDD*0.10)p.aborted++; else keep.push(f);
+        }
+        p.fruits=keep;
+        const ripe=p.fruits.filter(f=>f.gdd>=c.fruitGDD);
+        if(ripe.length){
+          p.fruits=p.fruits.filter(f=>f.gdd<c.fruitGDD);
+          for(const f of ripe){p.picked++;p.yieldG+=clamp(f.dm/perFruitDM,0.35,1.2)*c.fruitFreshG;}
+        }
+      }
+      /* pests */
+      if(cfg.pests&&p.gdd>c.gdd.leaf1){
+        if(p._arrive===undefined)p._arrive=hash32(Math.round(seedSalt*17)+k.length*991)<(k==="cuke"?0.75:0.65);
+        if(p._arrive){
+          if(k==="cuke"){
+            const good=(w.tmean>18&&w.tmean<30&&w.rh>48&&w.rh<92&&!w.rain);
+            p._pm=Math.max(0,(p._pm||0)+(good?1:-1.1));
+            if(p._pm>24)p.pmSev=clamp(p.pmSev+(good?0.026:0.006),0,0.85);
+          }else{
+            const good=(w.tmean>11&&w.tmean<25&&w.rh<74&&!w.rain);
+            p._ap=Math.max(0,(p._ap||0)+(good?1:-1.3));
+            if(p._ap>26)p.aphidSev=clamp(p.aphidSev+(good?0.022:0.004),0,0.78);
+          }
+        }
+      }
+      if(p.gdd>c.gdd.end){p.alive=false;p.deadWhy="finished its cycle";}
+    }
+
+    /* ---- record ---- */
+    const snap={d,date,w,et0:R.et0,dli,aw,satDays,mineralN,organicN,supplyRatio,LAI,footprint,
+      etcML,appliedML,drainedML,holdML:sub.holdML,sub,crops:{}};
+    for(const k in plants){
+      const p=plants[k],c=CROPS[k];
+      snap.crops[k]={alive:p.alive,up:p.up,gdd:p.gdd,stage:stageOf(c,p.gdd,p.up),
+        stemLen:p.stemLen,nodes:Math.max(0,Math.floor(p.nodes)),leafArea:p.leafArea,
+        dm:p.leafDM+p.stemDM+p.rootDM+p.fruitPool,rootDM:p.rootDM,
+        fruits:p.fruits.map(f=>({f:clamp(f.gdd/c.fruitGDD,0,1),fill:clamp(f.dm/(c.fruitFreshG*c.fruitDM),0,1.2)})),
+        yieldG:p.yieldG,picked:p.picked,aborted:p.aborted,
+        nIdx:p.nIdx,chlorosis:p.chlorosis,pmSev:p.pmSev,aphidSev:p.aphidSev,
+        fRoot:p.fRoot,fW:fW,fT:p.fT||0,damage:p.damage,deadWhy:p.deadWhy,n:counts[k]};
+    }
+    out.push(snap);
+  }
+  return {days:out,sub,cfg};
+}
+</script>
+
+<script>
+"use strict";
+/* ======================= DRAWING THE TUB ======================= */
+const SVGNS="http://www.w3.org/2000/svg";
+function smoothClosed(pts){                       // Catmull-Rom -> cubic bezier, closed
+  const n=pts.length; let d=`M${pts[0][0].toFixed(2)},${pts[0][1].toFixed(2)}`;
+  for(let i=0;i<n;i++){
+    const p0=pts[(i-1+n)%n],p1=pts[i],p2=pts[(i+1)%n],p3=pts[(i+2)%n];
+    const c1=[p1[0]+(p2[0]-p0[0])/6,p1[1]+(p2[1]-p0[1])/6];
+    const c2=[p2[0]-(p3[0]-p1[0])/6,p2[1]-(p3[1]-p1[1])/6];
+    d+=`C${c1[0].toFixed(2)},${c1[1].toFixed(2)} ${c2[0].toFixed(2)},${c2[1].toFixed(2)} ${p2[0].toFixed(2)},${p2[1].toFixed(2)}`;
+  }
+  return d+"Z";
+}
+function smoothOpen(pts){
+  if(pts.length<2)return "";
+  let d=`M${pts[0][0].toFixed(2)},${pts[0][1].toFixed(2)}`;
+  for(let i=0;i<pts.length-1;i++){
+    const p0=pts[Math.max(0,i-1)],p1=pts[i],p2=pts[i+1],p3=pts[Math.min(pts.length-1,i+2)];
+    const c1=[p1[0]+(p2[0]-p0[0])/6,p1[1]+(p2[1]-p0[1])/6];
+    const c2=[p2[0]-(p3[0]-p1[0])/6,p2[1]-(p3[1]-p1[1])/6];
+    d+=`C${c1[0].toFixed(2)},${c1[1].toFixed(2)} ${c2[0].toFixed(2)},${c2[1].toFixed(2)} ${p2[0].toFixed(2)},${p2[1].toFixed(2)}`;
+  }
+  return d;
+}
+/* vine node positions in cm, origin at soil surface, +y up */
+function vinePath(stemLenCm,internodeCm,supported,dir){
+  const pts=[]; const step=Math.max(internodeCm,0.6); const stake=160;
+  for(let s=0;s<=stemLenCm+0.001;s+=step){
+    let x,y;
+    if(supported){
+      if(s<=stake){ x=Math.sin(s/16)*3.0*dir+dir*s*0.055; y=s; }
+      else{ const t=s-stake; x=dir*(4+34*(1-Math.exp(-t/55))); y=stake+9*Math.sin(Math.min(t,22)/22*Math.PI/2)-Math.max(0,t-22)*0.5; }
+    }else{
+      if(s<=22){ x=dir*s*0.30; y=22*Math.sin(s/22*Math.PI/2); }
+      else{ const t=s-22; const reach=58*(1-Math.exp(-t/70));
+            x=dir*(6.6+reach*Math.sin(t/40)); y=Math.max(-0.5,22-t*0.95)+Math.sin(t/7)*1.8; }
+    }
+    pts.push([x,y,s]);
+  }
+  if(pts.length<2)pts.push([0,Math.max(stemLenCm,0.4),stemLenCm]);
+  return pts;
+}
+function cukeLeafPath(R){
+  const pts=[];
+  for(let i=0;i<40;i++){
+    const th=-Math.PI+(i/40)*2*Math.PI;
+    const lobe=0.80+0.20*Math.cos(5*th);
+    const notch=1-0.50*Math.exp(-Math.pow((Math.abs(th)-Math.PI)/0.52,2));
+    const r=R*lobe*notch;
+    pts.push([r*Math.sin(th),-r*Math.cos(th)+R*0.78]);
+  }
+  return smoothClosed(pts);
+}
+function leafFill(health,chlorosis,dark){
+  const h=lerp(78,128,clamp(1-chlorosis,0,1));
+  const s=lerp(22,46,clamp(health,0,1));
+  const l=dark?lerp(26,34,clamp(health,0,1)):lerp(34,43,clamp(health,0,1));
+  return `hsl(${h.toFixed(0)} ${s.toFixed(0)}% ${l.toFixed(0)}%)`;
+}
+function spiral(cx,cy,r,turns,dir){
+  let d=`M${cx.toFixed(1)},${cy.toFixed(1)}`;
+  const N=Math.max(8,Math.round(turns*12));
+  for(let i=1;i<=N;i++){const t=i/N,a=t*turns*2*Math.PI,rr=r*t;
+    d+=`L${(cx+dir*rr*Math.cos(a)).toFixed(1)},${(cy-rr*Math.sin(a)).toFixed(1)}`;}
+  return d;
+}
+
+function drawTub(snap,view,cfg,dark){
+  const W=680,H=520,floorY=486;
+  const sub=snap.sub, Dcm=sub.d, Hcm=sub.h;
+  const show={cuke:(view==="both"||view==="cuke")&&cfg.nCuke>0,
+              pea:(view==="both"||view==="pea")&&cfg.nPea>0};
+  const geo={};
+  let maxY=30,minXc=-Dcm/2,maxXc=Dcm/2;
+  for(const k of["cuke","pea"]){
+    const c=CROPS[k],cr=snap.crops[k];
+    if(!show[k]||!cr.up){geo[k]=null;continue;}
+    const lightF=clamp(snap.dli/14,0,1);
+    const inter=c.internode*(1+0.75*(1-lightF));
+    const dir=(k==="cuke")?1:-1;
+    const pts=vinePath(cr.stemLen,inter,cfg.support,dir);
+    const xoff=(view==="both")?dir*Dcm*0.34:0;
+    geo[k]={pts,inter,dir,xoff,c,cr};
+    for(const p of pts){maxY=Math.max(maxY,p[1]);minXc=Math.min(minXc,p[0]+xoff-8);maxXc=Math.max(maxXc,p[0]+xoff+8);}
+  }
+  const headroom=22;
+  const sceneCx=(minXc+maxXc)/2, halfW=Math.max((maxXc-minXc)/2,Dcm*0.7);
+  const Sv=(floorY-headroom)/(Hcm+Math.max(34,maxY)+4);
+  const Sh=(W/2-46)/halfW;
+  const S=Math.min(Sv,Sh,8.2);
+  const cx=W/2-sceneCx*S, tubW=Dcm*S, tubH=Hcm*S, soilY=floorY-tubH+2.2*S;
+  const X=(x)=>cx+x*S, Y=(y)=>soilY-y*S;
+  const E=[];
+  const push=(s)=>E.push(s);
+
+  /* floor */
+  push(`<rect x="0" y="${floorY}" width="${W}" height="${H-floorY}" fill="${dark?"#1a211c":"#ded7cb"}"/>`);
+  push(`<rect x="0" y="${floorY}" width="${W}" height="2" fill="${dark?"#232b25":"#cdc5b6"}"/>`);
+  for(let gx=40;gx<W;gx+=136)push(`<rect x="${gx}" y="${floorY}" width="1.5" height="${H-floorY}" fill="${dark?"#141a16":"#cdc5b6"}" opacity=".8"/>`);
+
+  /* sun / cloud / rain */
+  const sunX=W-132,sunY=72,bright=1-snap.w.cloud;
+  push(`<circle cx="${sunX}" cy="${sunY}" r="${20+8*bright}" fill="${dark?"#3a3a1e":"#f2e3a8"}" opacity="${(0.25+0.5*bright).toFixed(2)}"/>`);
+  push(`<circle cx="${sunX}" cy="${sunY}" r="15" fill="${dark?"#c9b254":"#e8c24a"}" opacity="${(0.35+0.65*bright).toFixed(2)}"/>`);
+  if(snap.w.cloud>0.3){
+    push(`<g fill="${dark?"#2b3339":"#ffffff"}" opacity="${(0.45+0.5*snap.w.cloud).toFixed(2)}">
+      <ellipse cx="${sunX+12}" cy="${sunY+6}" rx="30" ry="15"/><ellipse cx="${sunX-10}" cy="${sunY+10}" rx="22" ry="12"/>
+      <ellipse cx="${sunX+34}" cy="${sunY+12}" rx="18" ry="10"/></g>`);
+  }
+  if(snap.w.rain){for(let i=0;i<9;i++){const rx=sunX-44+i*11,ry=104+((i*17)%16);
+    push(`<line x1="${rx}" y1="${ry}" x2="${rx-4}" y2="${ry+13}" stroke="${dark?"#4f7fa8":"#7aa6c9"}" stroke-width="1.6" stroke-linecap="round" opacity=".75"/>`);}}
+
+  /* stake / net */
+  if(cfg.support){
+    const stakeTop=Y(clamp(maxY+8,18,165));
+    push(`<rect x="${(cx-2.2).toFixed(1)}" y="${stakeTop.toFixed(1)}" width="4.4" height="${(soilY-stakeTop+8).toFixed(1)}" rx="2" fill="${dark?"#4b4034":"#a6895f"}"/>`);
+    for(let y=stakeTop+26;y<soilY-10;y+=34)
+      push(`<line x1="${cx-26}" y1="${y}" x2="${cx+26}" y2="${y}" stroke="${dark?"#3a332a":"#c3ae8a"}" stroke-width="1.2" opacity=".65"/>`);
+  }
+
+  /* ---- roots (behind the tub wall, drawn first) ---- */
+  const rootClip=`rc`;
+  push(`<defs><clipPath id="${rootClip}"><path d="M${(cx-tubW/2+3).toFixed(1)},${(soilY).toFixed(1)}
+     L${(cx+tubW/2-3).toFixed(1)},${soilY.toFixed(1)} L${(cx+tubW/2-5).toFixed(1)},${(floorY-4).toFixed(1)}
+     Q${cx},${(floorY+2).toFixed(1)} ${(cx-tubW/2+5).toFixed(1)},${(floorY-4).toFixed(1)} Z"/></clipPath>
+     <linearGradient id="soilg" x1="0" y1="0" x2="0" y2="1">
+       <stop offset="0" stop-color="${dark?"#2a2018":"#4a3728"}"/><stop offset="1" stop-color="${dark?"#1d170f":"#352618"}"/>
+     </linearGradient></defs>`);
+  push(`<path d="M${(cx-tubW/2+3).toFixed(1)},${soilY.toFixed(1)} L${(cx+tubW/2-3).toFixed(1)},${soilY.toFixed(1)}
+     L${(cx+tubW/2-5).toFixed(1)},${(floorY-4).toFixed(1)} Q${cx},${(floorY+2).toFixed(1)} ${(cx-tubW/2+5).toFixed(1)},${(floorY-4).toFixed(1)} Z" fill="url(#soilg)"/>`);
+  /* moisture tint + standing water */
+  push(`<g clip-path="url(#${rootClip})">`);
+  push(`<rect x="${cx-tubW/2}" y="${soilY}" width="${tubW}" height="${floorY-soilY}" fill="${dark?"#3f6d8e":"#4f87ad"}" opacity="${(0.07+0.30*snap.aw).toFixed(2)}"/>`);
+  if(snap.satDays>0&&!cfg.holes){
+    const wh=Math.min(28,8+snap.satDays*2.4);
+    push(`<rect x="${cx-tubW/2}" y="${floorY-4-wh}" width="${tubW}" height="${wh}" fill="#2f6f9c" opacity=".55"/>`);
+    push(`<line x1="${cx-tubW/2}" y1="${floorY-4-wh}" x2="${cx+tubW/2}" y2="${floorY-4-wh}" stroke="#8fc6e8" stroke-width="1.4" opacity=".9"/>`);
+  }
+  /* root system */
+  for(const k of["cuke","pea"]){
+    const g=geo[k]; if(!g)continue;
+    const cr=g.cr, rdm=cr.rootDM*cr.n;
+    const rootCol=k==="cuke"?(dark?"#cdbda0":"#e6dcc6"):(dark?"#d9b9d2":"#eed8ea");
+    const n=clamp(Math.round(4+rdm*7),3,26);
+    const depth=clamp(0.25+Math.pow(clamp(rdm/ (cfg.volL*0.9),0,1),0.5),0.2,1);
+    const baseX=X(g.xoff);
+    for(let i=0;i<n;i++){
+      const t=(i+0.5)/n, ang=(t-0.5)*2.3+(hash32(i*37+k.length)-0.5)*0.5;
+      const len=(floorY-soilY)*depth*(0.55+0.45*hash32(i*91+k.length*7));
+      const pts=[[baseX,soilY+2]];
+      let px=baseX,py=soilY+2;
+      for(let j=1;j<=5;j++){
+        px+=Math.sin(ang)*len/5*(1+j*0.25)+ (hash32(i*13+j*61)-0.5)*7;
+        py+=Math.cos(ang*0.35)*len/5;
+        px=clamp(px,cx-tubW/2+4,cx+tubW/2-4);
+        pts.push([px,py]);
+      }
+      push(`<path d="${smoothOpen(pts)}" fill="none" stroke="${rootCol}" stroke-width="${(1.5-0.8*t).toFixed(2)}" opacity=".58" stroke-linecap="round"/>`);
+    }
+    if(cr.fRoot<0.55&&rdm>0.4){   /* roots circling the wall: the root-bound signature */
+      for(let i=0;i<3;i++){
+        const yy=soilY+16+i*((floorY-soilY-20)/3);
+        push(`<path d="M${cx-tubW/2+5},${yy} Q${cx},${yy+12} ${cx+tubW/2-5},${yy}" fill="none" stroke="${rootCol}" stroke-width="1.3" opacity=".5"/>`);
+      }
+    }
+  }
+  push(`</g>`);
+  /* soil crumb texture */
+  for(let i=0;i<26;i++){
+    const rx=cx-tubW/2+6+hash32(i*77)*(tubW-12), ry=soilY+1+hash32(i*131)*4;
+    push(`<circle cx="${rx.toFixed(1)}" cy="${ry.toFixed(1)}" r="${(1+hash32(i*53)*1.6).toFixed(1)}" fill="${dark?"#3a2d20":"#5b4531"}" opacity=".7"/>`);
+  }
+
+  /* ---- the tub itself: the black protein tub, label band and all ---- */
+  const tubTop=soilY-2.2*S, bw=tubW/2;
+  push(`<g>
+    <path d="M${cx-bw},${tubTop+4} L${cx-bw},${floorY-10} Q${cx-bw},${floorY} ${cx-bw+12},${floorY}
+             L${cx+bw-12},${floorY} Q${cx+bw},${floorY} ${cx+bw},${floorY-10} L${cx+bw},${tubTop+4} Z"
+          fill="${dark?"#15181a":"#20242a"}"/>
+    <path d="M${cx-bw},${tubTop+4} L${cx-bw+6},${tubTop+4} L${cx-bw+6},${floorY-6} L${cx-bw},${floorY-10} Z" fill="#ffffff" opacity=".07"/>
+    <ellipse cx="${cx}" cy="${tubTop+4}" rx="${bw}" ry="${Math.max(5,bw*0.17).toFixed(1)}" fill="${dark?"#0f1113":"#171a1f"}"/>
+    <ellipse cx="${cx}" cy="${tubTop+4}" rx="${(bw-4).toFixed(1)}" ry="${Math.max(3.5,(bw-4)*0.17).toFixed(1)}" fill="none" stroke="#3a4049" stroke-width="1.2"/>
+  </g>`);
+  /* label band — white nutrition panel, red stripe, navy block */
+  const lbY=tubTop+tubH*0.42, lbH=Math.max(26,tubH*0.30);
+  push(`<g opacity=".95">
+    <rect x="${cx-bw+3}" y="${lbY}" width="${(bw*2-6)*0.46}" height="${lbH}" fill="#f2f0eb"/>
+    <rect x="${cx-bw+3}" y="${lbY+lbH*0.72}" width="${bw*2-6}" height="${lbH*0.17}" fill="#c0392b"/>
+    <rect x="${cx-bw+3+(bw*2-6)*0.46}" y="${lbY+lbH*0.89}" width="${(bw*2-6)*0.54}" height="${lbH*0.11}" fill="#1e3550"/>`);
+  for(let i=0;i<5;i++)push(`<rect x="${cx-bw+7}" y="${lbY+5+i*(lbH*0.62/5)}" width="${(bw*2-14)*0.40}" height="1.2" fill="#9aa0a6"/>`);
+  push(`</g>`);
+
+  /* ---- plants ---- */
+  for(const k of["pea","cuke"]){
+    const g=geo[k]; if(!g)continue;
+    const {pts,inter,dir,xoff,c,cr}=g;
+    const health=clamp(1-cr.pmSev*0.9-cr.aphidSev*0.6-cr.damage,0,1);
+    const col=leafFill(health,cr.chlorosis,dark);
+    const stemCol=dark?`hsl(${lerp(80,120,1-cr.chlorosis).toFixed(0)} 28% 30%)`:`hsl(${lerp(80,120,1-cr.chlorosis).toFixed(0)} 32% 32%)`;
+    const P=pts.map(p=>[X(p[0]+xoff),Y(p[1])]);
+    const stemW=clamp(1.6+cr.stemLen*0.006*S,1.4,4.2);
+    push(`<path d="${smoothOpen(P)}" fill="none" stroke="${stemCol}" stroke-width="${stemW.toFixed(2)}" stroke-linecap="round"/>`);
+    const nodes=Math.max(1,Math.min(cr.nodes,pts.length-1,22));
+    const leafA=cr.leafArea/Math.max(nodes,1);
+    for(let i=1;i<=nodes;i++){
+      const idx=Math.round(i/nodes*(pts.length-1)); const p=P[idx]; if(!p)continue;
+      const side=(i%2===0)?1:-1, age=i/nodes;
+      const scaleAge=clamp(0.42+0.58*Math.sin(Math.min(1,age*1.45)*Math.PI/1.9),0.3,1.15);
+      if(k==="cuke"){
+        const R=clamp(Math.sqrt(Math.max(leafA,1)/2.6)*scaleAge,1.2,15)*S;
+        const rot=side*(28+18*hash32(i*19))+(cfg.support?0:38*dir);
+        push(`<g transform="translate(${p[0].toFixed(1)},${p[1].toFixed(1)}) rotate(${(rot).toFixed(0)})">
+          <line x1="0" y1="0" x2="0" y2="${(-R*0.52).toFixed(1)}" stroke="${stemCol}" stroke-width="${(stemW*0.55).toFixed(2)}"/>
+          <g transform="translate(0,${(-R*0.52).toFixed(1)})"><path d="${cukeLeafPath(R)}" fill="${col}" stroke="${dark?"#0e140f":"#1d2a1e"}" stroke-width=".7" stroke-opacity=".35"/></g></g>`);
+        if(cr.pmSev>0.12&&i>nodes*0.3){
+          for(let s=0;s<Math.round(cr.pmSev*5);s++)
+            push(`<circle cx="${(p[0]+(hash32(i*31+s)-0.5)*R*0.9).toFixed(1)}" cy="${(p[1]-R*0.5+(hash32(i*53+s)-0.5)*R*0.9).toFixed(1)}" r="${(R*0.12).toFixed(1)}" fill="#e8ecea" opacity=".75"/>`);
+        }
+        if(age>0.45&&i%2===1){
+          const tp=[p[0]+side*R*0.5,p[1]-R*0.2];
+          push(`<path d="${spiral(tp[0],tp[1],Math.max(3,R*0.36),1.6,side)}" fill="none" stroke="${stemCol}" stroke-width="${(stemW*0.42).toFixed(2)}" opacity=".85"/>`);
+        }
+      }else{
+        const a=clamp(Math.sqrt(Math.max(leafA,1)/4/(Math.PI*0.62))*scaleAge,0.8,6)*S;
+        const rot=side*34;
+        push(`<g transform="translate(${p[0].toFixed(1)},${p[1].toFixed(1)}) rotate(${rot})">
+          <line x1="0" y1="0" x2="0" y2="${(-a*2.4).toFixed(1)}" stroke="${stemCol}" stroke-width="${(stemW*0.5).toFixed(2)}"/>`);
+        for(let L=0;L<4;L++){
+          const ly=-a*(0.9+1.0*Math.floor(L/2)), lx=(L%2?1:-1)*a*0.95;
+          push(`<ellipse cx="${lx.toFixed(1)}" cy="${ly.toFixed(1)}" rx="${a.toFixed(1)}" ry="${(a*0.64).toFixed(1)}" fill="${col}" stroke="${dark?"#0e140f":"#1d2a1e"}" stroke-width=".6" stroke-opacity=".3" transform="rotate(${(L%2?20:-20)},${lx.toFixed(1)},${ly.toFixed(1)})"/>`);
+        }
+        push(`<path d="${spiral(0,-a*2.4,Math.max(2.4,a*0.8),1.4,side)}" fill="none" stroke="${stemCol}" stroke-width="${(stemW*0.38).toFixed(2)}" opacity=".9"/></g>`);
+        if(cr.aphidSev>0.1&&i>nodes*0.4){
+          for(let s=0;s<Math.round(cr.aphidSev*6);s++)
+            push(`<circle cx="${(p[0]+(hash32(i*23+s)-0.5)*7).toFixed(1)}" cy="${(p[1]-4-(hash32(i*41+s))*8).toFixed(1)}" r="1.5" fill="${dark?"#9fbf6a":"#6f8f3a"}" opacity=".9"/>`);
+        }
+      }
+    }
+    /* flowers */
+    const flowering=cr.gdd>= (c.selfPollinating?c.gdd.male:c.gdd.male) && cr.gdd<c.gdd.end && cr.up;
+    if(flowering&&nodes>2){
+      const nf=clamp(Math.round(nodes*0.22),1,7);
+      for(let i=0;i<nf;i++){
+        const idx=Math.round((0.45+0.52*(i/Math.max(nf-1,1)))*(pts.length-1)); const p=P[idx]; if(!p)continue;
+        const fx=p[0]+(i%2?1:-1)*6, fy=p[1]-5;
+        if(k==="cuke"){
+          push(`<g transform="translate(${fx.toFixed(1)},${fy.toFixed(1)})">`);
+          for(let q=0;q<5;q++)push(`<ellipse cx="0" cy="-4" rx="2.6" ry="4.2" fill="#e8bf2e" transform="rotate(${q*72})"/>`);
+          push(`<circle r="1.9" fill="#b98f14"/></g>`);
+        }else{
+          push(`<g transform="translate(${fx.toFixed(1)},${fy.toFixed(1)})">
+            <ellipse cx="0" cy="-3" rx="4" ry="3.4" fill="${dark?"#efe6f0":"#fbf7fb"}"/>
+            <ellipse cx="0" cy="0.5" rx="3" ry="2.2" fill="${dark?"#d9c3e0":"#eadcee"}"/></g>`);
+        }
+      }
+    }
+    /* fruit */
+    cr.fruits.forEach((f,i)=>{
+      const idx=Math.round((0.40+0.55*((i+0.5)/Math.max(cr.fruits.length,1)))*(pts.length-1));
+      const p=P[idx]; if(!p)return;
+      const side=(i%2?1:-1);
+      if(k==="cuke"){
+        const L=clamp(f.f,0.06,1)*18*S*clamp(f.fill,0.4,1.1), Wd=L*0.30;
+        const ripe=f.f>0.92;
+        push(`<g transform="translate(${(p[0]+side*4).toFixed(1)},${(p[1]+2).toFixed(1)}) rotate(${side*12})">
+          <path d="M0,0 q${(Wd*0.9).toFixed(1)},${(L*0.4).toFixed(1)} ${(Wd*0.25).toFixed(1)},${L.toFixed(1)}
+                   q${(-Wd*0.25).toFixed(1)},${(Wd*0.5).toFixed(1)} ${(-Wd*0.5).toFixed(1)},0
+                   q${(-Wd*0.65).toFixed(1)},${(-L*0.6).toFixed(1)} ${(-Wd*0.25).toFixed(1)},${(-L).toFixed(1)} Z"
+            fill="${ripe?(dark?"#4f8c3c":"#5e9c3f"):(dark?"#3f7a46":"#4b8a4c")}" stroke="#1d3320" stroke-width=".5" stroke-opacity=".4"/>
+          <path d="M${(-Wd*0.1).toFixed(1)},${(L*0.15).toFixed(1)} q${(Wd*0.2).toFixed(1)},${(L*0.35).toFixed(1)} 0,${(L*0.7).toFixed(1)}"
+            fill="none" stroke="#cfe0b8" stroke-width=".8" opacity=".55"/></g>`);
+      }else{
+        const L=clamp(f.f,0.06,1)*7*S*clamp(f.fill,0.4,1.1), Wd=L*0.34;
+        push(`<g transform="translate(${(p[0]+side*4).toFixed(1)},${(p[1]+1).toFixed(1)}) rotate(${side*22})">
+          <path d="M0,0 q${(Wd*1.1).toFixed(1)},${(L*0.5).toFixed(1)} 0,${L.toFixed(1)} q${(-Wd*1.1).toFixed(1)},${(-L*0.5).toFixed(1)} 0,${(-L).toFixed(1)} Z"
+            fill="${f.f>0.9?(dark?"#6ea04a":"#7fae55"):(dark?"#4e8b4a":"#5d9b52")}" stroke="#1d3320" stroke-width=".4" stroke-opacity=".4"/>`);
+        const nb=Math.max(2,Math.round(f.fill*5));
+        for(let b=0;b<nb;b++)push(`<circle cx="0" cy="${(L*(b+0.7)/nb).toFixed(1)}" r="${(Wd*0.34).toFixed(1)}" fill="#000" opacity=".12"/>`);
+        push(`</g>`);
+      }
+    });
+    if(!cr.alive&&cr.up){
+      push(`<text x="${X(xoff).toFixed(0)}" y="${(Y(Math.min(maxY,cr.stemLen))-12).toFixed(0)}" text-anchor="middle"
+        font-family="IBM Plex Mono, monospace" font-size="11" fill="${dark?"#e0705c":"#a93a28"}">${c.name} — ${cr.deadWhy}</text>`);
+    }
+  }
+  /* seed markers before emergence */
+  for(const k of["cuke","pea"]){
+    if(!show[k]||snap.crops[k].up)continue;
+    const dir=k==="cuke"?1:-1, xo=(view==="both")?dir*Dcm*0.20:0;
+    push(`<circle cx="${X(xo).toFixed(1)}" cy="${(soilY+6).toFixed(1)}" r="3" fill="${dark?"#c9b28a":"#d8c49c"}" opacity=".9"/>`);
+  }
+  /* scale bar */
+  const rx=W-34, span=Math.max(20,Math.min(maxY+10,(soilY-30)/S));
+  const stepCm=span>160?50:span>70?25:span>30?10:5;
+  let ruler=`<line x1="${rx}" y1="${soilY.toFixed(1)}" x2="${rx}" y2="${Y(span).toFixed(1)}" stroke="currentColor" stroke-width="1.2" opacity=".65"/>`;
+  for(let t=0;t<=span;t+=stepCm){
+    const yy=Y(t); if(yy<24)break;
+    ruler+=`<line x1="${rx-5}" y1="${yy.toFixed(1)}" x2="${rx}" y2="${yy.toFixed(1)}" stroke="currentColor" stroke-width="1.2" opacity=".65"/>`;
+    ruler+=`<text x="${rx-8}" y="${(yy+3.2).toFixed(1)}" text-anchor="end" font-size="9.5" opacity=".85">${t}</text>`;
+  }
+  push(`<g font-family="IBM Plex Mono, monospace" font-size="10" fill="${dark?"#7c8a81":"#6f7d74"}">${ruler}
+    <text x="${rx}" y="${(Y(span)-8).toFixed(1)}" text-anchor="end" font-size="9.5" opacity=".85">cm</text></g>`);
+  return E.join("");
+}
+</script>
+
+<script>
+"use strict";
+/* ======================= CHARTS ======================= */
+function niceMax(v){if(v<=0)return 1;const e=Math.pow(10,Math.floor(Math.log10(v)));const m=v/e;
+  return (m<=1?1:m<=2?2:m<=2.5?2.5:m<=5?5:10)*e;}
+function lineChart(svg,opt){
+  const vb=svg.viewBox.baseVal, W=vb.width, H=vb.height;
+  const PL=opt.padLeft||40,PR=14,PT=10,PB=24;
+  const iw=W-PL-PR, ih=H-PT-PB;
+  const n=opt.x.length;
+  const ymaxRaw=opt.ymax!=null?opt.ymax:Math.max(...opt.series.flatMap(s=>s.v.filter(Number.isFinite)),...(opt.points||[]).map(p=>p.y),0);
+  const ymin=opt.ymin||0, ymax=Math.max(opt.ymax!=null?opt.ymax:niceMax(ymaxRaw),opt.yfloor||0,ymin+1);
+  const px=i=>PL+(n<2?0:i/(n-1))*iw;
+  const py=v=>PT+ih-((clamp(v,ymin,ymax)-ymin)/(ymax-ymin))*ih;
+  const cs=getComputedStyle(document.body);
+  const ink3=cs.getPropertyValue("--ink-3").trim()||"#7d8b81";
+  const line=cs.getPropertyValue("--line").trim()||"#d7ded5";
+  const surf=cs.getPropertyValue("--surface").trim()||"#fff";
+  let g="";
+  /* grid */
+  const ticks=4;
+  for(let t=0;t<=ticks;t++){
+    const v=ymin+(ymax-ymin)*t/ticks, y=py(v);
+    g+=`<line x1="${PL}" y1="${y.toFixed(1)}" x2="${W-PR}" y2="${y.toFixed(1)}" stroke="${line}" stroke-width="1"${t?' opacity=".65"':''}/>`;
+    const step=(ymax-ymin)/ticks, dec=step>=1?0:step>=0.2?1:2;
+    g+=`<text x="${PL-7}" y="${(y+3.5).toFixed(1)}" text-anchor="end" font-family="IBM Plex Mono,monospace" font-size="9.5" fill="${ink3}">${opt.yfmt?opt.yfmt(v):fmt(v,dec)}</text>`;
+  }
+  /* x labels: month boundaries */
+  (opt.xticks||[]).forEach(t=>{
+    g+=`<text x="${px(t.i).toFixed(1)}" y="${(H-7).toFixed(1)}" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="9.5" fill="${ink3}">${t.label}</text>`;
+  });
+  /* band */
+  if(opt.band){
+    let d=`M${px(0).toFixed(1)},${py(opt.band.hi[0]).toFixed(1)}`;
+    for(let i=1;i<n;i++)d+=`L${px(i).toFixed(1)},${py(opt.band.hi[i]).toFixed(1)}`;
+    for(let i=n-1;i>=0;i--)d+=`L${px(i).toFixed(1)},${py(opt.band.lo[i]).toFixed(1)}`;
+    g+=`<path d="${d}Z" fill="${opt.band.color}" opacity=".17"/>`;
+  }
+  /* series */
+  opt.series.forEach(s=>{
+    if(s.area){
+      let d=`M${px(0).toFixed(1)},${py(ymin).toFixed(1)}`;
+      for(let i=0;i<n;i++)d+=`L${px(i).toFixed(1)},${py(s.v[i]).toFixed(1)}`;
+      d+=`L${px(n-1).toFixed(1)},${py(ymin).toFixed(1)}Z`;
+      g+=`<path d="${d}" fill="${s.color}" opacity=".13"/>`;
+    }
+    let d="";
+    for(let i=0;i<n;i++){const v=s.v[i];if(!Number.isFinite(v))continue;d+=(d?"L":"M")+px(i).toFixed(1)+","+py(v).toFixed(1);}
+    g+=`<path d="${d}" fill="none" stroke="${s.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+    if(s.label&&n>1){
+      const last=s.v[n-1];
+      if(Number.isFinite(last))
+        g+=`<circle cx="${px(n-1).toFixed(1)}" cy="${py(last).toFixed(1)}" r="3.4" fill="${s.color}" stroke="${surf}" stroke-width="2"/>`;
+    }
+  });
+  /* observation points */
+  (opt.points||[]).forEach(p=>{
+    g+=`<circle cx="${px(p.i).toFixed(1)}" cy="${py(p.y).toFixed(1)}" r="4.2" fill="${surf}" stroke="${p.color}" stroke-width="2.2"/>`;
+  });
+  /* today marker */
+  if(opt.marker!=null&&opt.marker>=0&&opt.marker<n){
+    g+=`<line x1="${px(opt.marker).toFixed(1)}" y1="${PT}" x2="${px(opt.marker).toFixed(1)}" y2="${PT+ih}" stroke="${ink3}" stroke-width="1.2" stroke-dasharray="3 3"/>`;
+  }
+  g+=`<line x1="${PL}" y1="${PT+ih}" x2="${W-PR}" y2="${PT+ih}" stroke="${line}" stroke-width="1.2"/>`;
+  g+=`<rect class="hit" x="${PL}" y="${PT}" width="${iw}" height="${ih}" fill="transparent"/>`;
+  g+=`<g class="cross" style="display:none"><line y1="${PT}" y2="${PT+ih}" stroke="${ink3}" stroke-width="1"/></g>`;
+  svg.innerHTML=g;
+  svg._geom={px,py,n,PL,iw,PT,ih};
+  return {px,py};
+}
+function attachHover(svg,opt){
+  const host=svg.closest(".rel"); if(!host)return;
+  let tt=host.querySelector(".tt");
+  if(!tt){tt=document.createElement("div");tt.className="tt";tt.hidden=true;host.appendChild(tt);}
+  const cross=svg.querySelector(".cross"), vline=cross&&cross.querySelector("line");
+  const move=ev=>{
+    const g=svg._geom; if(!g)return;
+    const r=svg.getBoundingClientRect(), vb=svg.viewBox.baseVal;
+    const cxp=ev.touches?ev.touches[0].clientX:ev.clientX;
+    const vx=(cxp-r.left)/r.width*vb.width;
+    let i=Math.round((vx-g.PL)/g.iw*(g.n-1)); i=clamp(i,0,g.n-1);
+    if(cross&&vline){cross.style.display="";vline.setAttribute("x1",g.px(i));vline.setAttribute("x2",g.px(i));}
+    const rows=opt.rows(i);
+    tt.innerHTML=`<div class="tt-h">${rows.head}</div>`+rows.lines.map(l=>
+      `<div class="tt-r"><span style="color:${l.color||"inherit"}">${l.k}</span><span>${l.v}</span></div>`).join("");
+    tt.hidden=false;
+    const hr=host.getBoundingClientRect();
+    const left=clamp((g.px(i)/vb.width)*r.width+(r.left-hr.left)+10,4,hr.width-150);
+    tt.style.left=left+"px"; tt.style.top=Math.max(4,(r.top-hr.top)+8)+"px";
+  };
+  svg.onpointermove=move; svg.onpointerdown=move;
+  svg.onpointerleave=()=>{tt.hidden=true;if(cross)cross.style.display="none";};
+}
+</script>
+
+<script>
+"use strict";
+/* ======================= ALERTS ======================= */
+function buildAlerts(snap,cfg,sim){
+  const A=[],add=(level,tag,title,text)=>A.push({level,tag,title,text});
+  const c=snap.crops.cuke,p=snap.crops.pea;
+  const ml=Math.round(snap.etcML);
+  if(!cfg.holes) add("crit","tub","Drill 6–8 holes in the base",
+    "A sealed protein tub has nowhere for water to go. Six 8 mm holes in the bottom and four more low on the side is the single highest-value thing you can do to this container.");
+  if(snap.satDays>1) add("crit","roots",`Standing water, ${snap.satDays} days`,
+    "The mix below is saturated and the roots are short of oxygen. Tip the tub on its side to drain, then stop watering until the top 3 cm is dry.");
+  if(snap.aw<0.22){
+    const over=ml>snap.holdML*0.6;
+    add("crit","water",over?`The tub cannot hold a day's water any more`:`Dry — give about ${Math.max(250,Math.round(ml*1.6))} ml`,
+      over?`The plants want about ${ml} ml today and the whole tub only holds ${Math.round(snap.holdML)} ml of available water. Water morning and evening, stand the tub in a tray, or move it into something two or three times the size — one watering a day is no longer enough.`
+          :`The tub is at ${Math.round(snap.aw*100)}% of the water it can hold. Today's demand alone is about ${ml} ml.`);
+  }
+  else if(snap.aw<0.48) add("warn","water",`Water today, about ${Math.max(200,ml)} ml`,
+    `${Math.round(snap.aw*100)}% of available water left. Pour slowly until it runs from the holes.`);
+  if(cfg.nCuke>0&&c.up&&c.gdd>=CROPS.cuke.gdd.female&&c.alive&&!cfg.handPollinate&&cfg.site!=="terrace")
+    add("warn","pollen","Female flowers with no pollinator",
+      "Cucumber needs pollen carried from a male flower. On a balcony there are rarely enough bees — pick an open male flower, strip the petals and dab it inside each female flower (the one with a tiny cucumber behind it) before 10 am.");
+  if(c.aborted>2&&c.picked===0&&c.up&&cfg.nCuke>0)
+    add("warn","pollen",`${c.aborted} young cucumbers dropped`,
+      "Fruit that yellows at 3–5 cm and falls is unpollinated, not diseased.");
+  if(snap.supplyRatio<0.55&&(c.up||p.up))
+    add("warn","feed","Nitrogen is running short",
+      "Mix two handfuls of vermicompost into the top 2 cm, or water in diluted compost tea once a week. Pale lower leaves are the first sign.");
+  const worstRoot=Math.min(cfg.nCuke>0&&c.up?c.fRoot:1,cfg.nPea>0&&p.up?p.fRoot:1);
+  if(worstRoot<0.55) add("warn","space",`Root-bound at ${Math.round(worstRoot*100)}% of the room it wants`,
+    `${cfg.nCuke+cfg.nPea} plants in ${cfg.volL} L. A cucumber carrying fruit wants 12–20 L to itself; peas are happy with about 2 L each. Thin to the strongest, or move one into a bigger container.`);
+  if(c.pmSev>0.08) add(c.pmSev>0.3?"crit":"warn","disease",`Powdery mildew, ${Math.round(c.pmSev*100)}% of leaf area`,
+    "White felt on the older leaves. Remove the worst, then spray 1 part milk to 9 parts water, or 5 ml neem oil per litre, early in the morning every 5 days.");
+  if(p.aphidSev>0.08) add(p.aphidSev>0.3?"crit":"warn","pest",`Aphids on the pea tips, ${Math.round(p.aphidSev*100)}%`,
+    "Clustered on the growing tips. A hard jet of water most mornings, or neem at 5 ml per litre.");
+  if(cfg.nCuke>0&&c.up&&c.alive&&snap.w.tmin<10)
+    add(snap.w.tmin<4?"crit":"warn","cold",`Cold night, ${fmt(snap.w.tmin,1)} °C`,
+      "Cucumber stops below about 12 °C and is damaged near 4 °C. Move the tub against a wall overnight, or cover it.");
+  if(cfg.nPea>0&&p.up&&p.gdd>=CROPS.pea.gdd.male&&snap.w.tmax>32)
+    add("warn","heat",`Too hot for pea pods, ${fmt(snap.w.tmax,1)} °C`,
+      "Above about 32 °C pea flowers abort instead of setting pods. Afternoon shade helps; this is why peas are a winter crop here.");
+  if(!cfg.support&&((c.up&&c.gdd>CROPS.cuke.gdd.vine)||(p.up&&p.gdd>CROPS.pea.gdd.vine)))
+    add("warn","support","Give the vines something to climb",
+      "Both crops are climbers. A 1.5 m stake or a net against the wall nearly doubles the light the leaves catch and keeps fruit off the ground.");
+  if(snap.dli<6&&(c.up||p.up))
+    add(snap.dli<3?"crit":"warn","light",`Only ${fmt(snap.dli,1)} mol/m²/day of light`,
+      "Cucumber needs roughly 12–16 and pea about 10 to carry fruit. Below that the stems stretch, the leaves stay thin and flowers drop. The brightest spot you have, with direct sun, is worth more than any fertiliser.");
+  const prev=sim.days[Math.max(0,snap.d-1)];
+  if(c.picked>prev.crops.cuke.picked) add("info","pick","Cucumbers ready","Pick at 12–15 cm, before the skin dulls. Picking often keeps new fruit setting.");
+  if(p.picked>prev.crops.pea.picked) add("info","pick","Pods ready","Pick when the pods are filled but still glossy; a day late and they turn starchy.");
+  if(!A.length){
+    const next=nextMilestone(sim,snap.d);
+    add("info","ok","Nothing needs doing today",next?`Next: ${next.label} around ${fmtDate(next.date)}.`:"The season is over in this run.");
+  }
+  const order={crit:0,warn:1,info:2};
+  return A.sort((a,b)=>order[a.level]-order[b.level]).slice(0,5);
+}
+function milestones(sim,k){
+  const c=CROPS[k],out=[];
+  for(let s=1;s<STAGES.length;s++){
+    const day=sim.days.find(d=>d.crops[k].stage>=s&&d.crops[k].alive);
+    out.push({s,label:STAGES[s].label,day:day?day.d:null,date:day?day.date:null});
+  }
+  return out;
+}
+function nextMilestone(sim,d){
+  const out=[];
+  for(const k of["cuke","pea"]) if(sim.cfg[k==="cuke"?"nCuke":"nPea"]>0)
+    for(const m of milestones(sim,k)) if(m.day!=null&&m.day>d) out.push({...m,label:`${CROPS[k].name.toLowerCase()} — ${m.label.toLowerCase()}`});
+  out.sort((a,b)=>a.day-b.day);
+  return out[0]||null;
+}
+</script>
+
+<script>
+"use strict";
+/* ======================= APP ======================= */
+const $=id=>document.getElementById(id);
+const STORE="tubgarden.v1";
+const todayISO=isoDate(new Date());
+const DEFAULTS={sown:todayISO,city:"delhi",volL:4.5,site:"balcony",nCuke:2,nPea:4,vcFrac:0.25,
+  discipline:0.85,holes:false,support:true,handPollinate:false,pests:true,horizon:165};
+let cfg={...DEFAULTS}, obs=[], sim=null, view="both", day=0, playing=null;
+
+function load(){try{const r=JSON.parse(localStorage.getItem(STORE)||"null");
+  if(r){cfg={...DEFAULTS,...(r.cfg||{})};obs=Array.isArray(r.obs)?r.obs:[];}}catch(e){}}
+function save(){try{localStorage.setItem(STORE,JSON.stringify({cfg,obs}));}catch(e){}}
+function isDark(){const t=document.documentElement.getAttribute("data-theme");
+  return t?t==="dark":matchMedia("(prefers-color-scheme: dark)").matches;}
+function cssVar(n){return getComputedStyle(document.body).getPropertyValue(n).trim();}
+
+/* ---- config form ---- */
+function fillCitySelect(){
+  $("cfgCity").innerHTML=Object.entries(CLIMATE).map(([k,v])=>`<option value="${k}">${v.name}</option>`).join("");
+}
+function cfgToForm(){
+  $("cfgSown").value=cfg.sown; $("cfgCity").value=cfg.city; $("cfgVol").value=String(cfg.volL);
+  $("cfgSite").value=cfg.site; $("cfgNCuke").value=cfg.nCuke; $("cfgNPea").value=cfg.nPea;
+  $("cfgVc").value=String(cfg.vcFrac); $("cfgDisc").value=String(cfg.discipline);
+  $("cfgHoles").checked=cfg.holes; $("cfgSupport").checked=cfg.support;
+  $("cfgPollinate").checked=cfg.handPollinate; $("cfgPests").checked=cfg.pests;
+}
+function formToCfg(){
+  cfg.sown=$("cfgSown").value||todayISO; cfg.city=$("cfgCity").value; cfg.volL=parseFloat($("cfgVol").value);
+  cfg.site=$("cfgSite").value; cfg.nCuke=clamp(parseInt($("cfgNCuke").value||"0",10),0,8);
+  cfg.nPea=clamp(parseInt($("cfgNPea").value||"0",10),0,20); cfg.vcFrac=parseFloat($("cfgVc").value);
+  cfg.discipline=parseFloat($("cfgDisc").value); cfg.holes=$("cfgHoles").checked;
+  cfg.support=$("cfgSupport").checked; cfg.handPollinate=$("cfgPollinate").checked; cfg.pests=$("cfgPests").checked;
+}
+function todayIndex(){
+  const d=Math.round((parseISO(todayISO)-parseISO(cfg.sown))/DAY);
+  return clamp(d,0,cfg.horizon);
+}
+
+/* ---- rebuild everything ---- */
+function rebuild(keepDay){
+  sim=simulate(cfg);
+  $("scrub").max=String(cfg.horizon);
+  day=clamp(keepDay==null?todayIndex():keepDay,0,cfg.horizon);
+  $("scrub").value=String(day);
+  $("brandSub").textContent=`${cfg.nCuke} cucumber · ${cfg.nPea} pea · ${cfg.volL} L · ${SITE[cfg.site].label}`;
+  renderAll();
+}
+function renderAll(){ renderStage(); renderReadouts(); renderAlerts(); renderPheno(); renderCharts(); renderObs(); }
+
+function renderStage(){
+  const snap=sim.days[day];
+  $("tub").innerHTML=drawTub(snap,view,cfg,isDark());
+  const w=snap.w;
+  $("capWeather").textContent=`${fmt(w.tmax,1)}° / ${fmt(w.tmin,1)}° · ${Math.round(w.rh)}% RH${w.rain?" · rain":""}`;
+  $("capLight").textContent=`${fmt(snap.dli,1)} mol/m²·d light · ET ${Math.round(snap.etcML)} ml · one plant of each drawn`;
+  $("dayNum").textContent=String(day);
+  $("dayDate").textContent=fmtDateY(snap.date);
+  $("scrubStamp").textContent=`${fmtDateY(snap.date)} · day ${day} of ${cfg.horizon}`;
+}
+function tile(k,v,unit,meter,meterCol,sub){
+  return `<div class="ro"><div class="k">${k}</div><div class="v">${v}${unit?`<small>${unit}</small>`:""}</div>
+    ${sub?`<div class="m">${sub}</div>`:""}
+    ${meter!=null?`<div class="meter"><i style="width:${clamp(meter*100,0,100).toFixed(0)}%;background:${meterCol}"></i></div>`:""}</div>`;
+}
+function stageName(cr,k){
+  if(!cr.up)return cr.alive?"Underground":"Failed";
+  if(!cr.alive)return "Finished";
+  return STAGES[cr.stage].label;
+}
+function renderReadouts(){
+  const s=sim.days[day],c=s.crops.cuke,p=s.crops.pea;
+  const ok=cssVar("--accent"),wat=cssVar("--water"),warn=cssVar("--warn");
+  const h=[];
+  h.push(tile("Cucumber",cfg.nCuke?stageName(c):"—","",null,null,
+    cfg.nCuke?`${fmt(c.stemLen,0)} cm · ${c.nodes} leaves · ${c.fruits.length} fruit`:"none sown"));
+  h.push(tile("Pea",cfg.nPea?stageName(p):"—","",null,null,
+    cfg.nPea?`${fmt(p.stemLen,0)} cm · ${p.nodes} leaves · ${p.fruits.length} pods`:"none sown"));
+  h.push(tile("Water in tub",Math.round(s.aw*100),"%",s.aw,s.aw<0.45?warn:wat,
+    `${Math.round(s.holdML)} ml when full · ${Math.round(s.etcML)} ml used today`));
+  h.push(tile("Nitrogen met",Math.round(s.supplyRatio*100),"%",s.supplyRatio,s.supplyRatio<0.6?warn:ok,
+    `${Math.round(s.mineralN)} mg available in the mix`));
+  const fr=Math.min(cfg.nCuke&&c.up?c.fRoot:1,cfg.nPea&&p.up?p.fRoot:1);
+  h.push(tile("Root room",Math.round(fr*100),"%",fr,fr<0.55?warn:ok,
+    `${cfg.nCuke+cfg.nPea} plants sharing ${cfg.volL} L`));
+  h.push(tile("Picked so far",Math.round(c.yieldG+p.yieldG),"g",null,null,
+    `${c.picked} cucumber · ${p.picked} pods · ${c.aborted+p.aborted} dropped`));
+  $("readouts").innerHTML=h.join("");
+}
+function renderAlerts(){
+  const s=sim.days[day], A=buildAlerts(s,cfg,sim);
+  $("alertStamp").textContent=fmtDate(s.date);
+  $("alerts").innerHTML=A.map(a=>`<div class="alert ${a.level==="info"?"":a.level}">
+    <div class="bar"></div><div class="body"><div class="t">${a.title}<em>${a.tag}</em></div><p>${a.text}</p></div></div>`).join("");
+}
+function renderPheno(){
+  const rows=[];
+  const N=cfg.horizon;
+  for(const k of["cuke","pea"]){
+    const n=k==="cuke"?cfg.nCuke:cfg.nPea; if(!n)continue;
+    const ms=milestones(sim,k), col=k==="cuke"?cssVar("--cuke"):cssVar("--pea");
+    let segs="";
+    let prev=0;
+    ms.forEach((m,i)=>{
+      if(m.day==null)return;
+      const w=(m.day-prev)/N*100;
+      segs+=`<i title="${STAGES[i].label} → ${m.label}" style="left:${(prev/N*100).toFixed(2)}%;width:${w.toFixed(2)}%;background:${col};opacity:${(0.22+0.09*i).toFixed(2)}"></i>`;
+      prev=m.day;
+    });
+    segs+=`<span class="today" style="left:${(day/N*100).toFixed(2)}%"></span>`;
+    rows.push(`<div class="pheno-row"><div class="lab">${CROPS[k].name} <span style="color:var(--ink-3)">(${CROPS[k].hindi})</span></div>
+      <div class="pheno-bar">${segs}</div></div>`);
+    const dates=ms.filter(m=>m.date).map(m=>`<span style="white-space:nowrap">${m.label} <b style="font-family:var(--f-mono);font-weight:500">${fmtDate(m.date)}</b></span>`).join(" · ");
+    rows.push(`<div class="pheno-row"><div class="lab"></div><div style="font-size:11.5px;color:var(--ink-3);padding:2px 0 8px;line-height:1.7">${dates||"never reached in this run"}</div></div>`);
+  }
+  $("pheno").innerHTML=rows.join("")||`<p class="prose" style="margin:0">Set at least one plant in your setup.</p>`;
+  const ticks=[];
+  for(let i=0;i<=5;i++){const d=Math.round(cfg.horizon*i/5);ticks.push(`<span>${fmtDate(sim.days[d].date)}</span>`);}
+  $("phenoTicks").innerHTML=ticks.join("");
+}
+function xticksFor(days){
+  const out=[];let lastM=-1;
+  days.forEach((d,i)=>{const m=d.date.getMonth();if(m!==lastM){lastM=m;out.push({i,label:d.date.toLocaleDateString(undefined,{month:"short"})});}});
+  return out.filter((t,i)=>i%Math.ceil(out.length/6||1)===0);
+}
+function renderCharts(){
+  const D=sim.days, xt=xticksFor(D), cC=cssVar("--cuke"),cP=cssVar("--pea"),cW=cssVar("--water"),cI=cssVar("--ink-2");
+  const ser=[];
+  if(cfg.nCuke)ser.push({key:"cuke",label:"Cucumber",color:cC,v:D.map(d=>d.crops.cuke.up?d.crops.cuke.stemLen:null)});
+  if(cfg.nPea)ser.push({key:"pea",label:"Pea",color:cP,v:D.map(d=>d.crops.pea.up?d.crops.pea.stemLen:null)});
+  const pts=obs.filter(o=>o.len!=null).map(o=>{
+    const i=Math.round((parseISO(o.date)-parseISO(cfg.sown))/DAY);
+    return (i>=0&&i<=cfg.horizon)?{i,y:o.len,color:o.crop==="cuke"?cC:cP}:null;}).filter(Boolean);
+  lineChart($("chGrowth"),{x:D,series:ser,points:pts,xticks:xt,marker:day,yfloor:20,yfmt:v=>fmt(v,0)});
+  attachHover($("chGrowth"),{rows:i=>({head:fmtDateY(D[i].date)+" · day "+i,
+    lines:ser.map(s=>({k:s.label,v:s.v[i]==null?"—":fmt(s.v[i],0)+" cm",color:s.color}))
+      .concat([{k:"stage",v:cfg.nCuke?stageName(D[i].crops.cuke):stageName(D[i].crops.pea)}])})});
+  $("legGrowth").innerHTML=ser.map(s=>`<span><i class="dot" style="background:${s.color}"></i>${s.label}</span>`).join("")
+    +(pts.length?`<span><i class="dot" style="background:transparent;border:2px solid var(--ink-3)"></i>your readings</span>`:"");
+  const rowsN=D.filter((d,i)=>i%7===0);
+  $("tblGrowth").innerHTML=`<thead><tr><th>Date</th><th class="num">Day</th>`+
+    (cfg.nCuke?`<th class="num">Cucumber cm</th><th class="num">Leaves</th>`:"")+
+    (cfg.nPea?`<th class="num">Pea cm</th><th class="num">Leaves</th>`:"")+`</tr></thead><tbody>`+
+    rowsN.map(d=>`<tr><td>${fmtDateY(d.date)}</td><td class="num">${d.d}</td>`+
+      (cfg.nCuke?`<td class="num">${fmt(d.crops.cuke.stemLen,0)}</td><td class="num">${d.crops.cuke.nodes}</td>`:"")+
+      (cfg.nPea?`<td class="num">${fmt(d.crops.pea.stemLen,0)}</td><td class="num">${d.crops.pea.nodes}</td>`:"")+
+      `</tr>`).join("")+`</tbody>`;
+
+  const yser=[];
+  if(cfg.nCuke)yser.push({label:"Cucumber",color:cC,v:D.map(d=>d.crops.cuke.yieldG*cfg.nCuke),area:true});
+  if(cfg.nPea)yser.push({label:"Pea",color:cP,v:D.map(d=>d.crops.pea.yieldG*cfg.nPea),area:true});
+  lineChart($("chYield"),{x:D,series:yser,xticks:xt,marker:day,yfloor:50,yfmt:v=>fmt(v,0)});
+  attachHover($("chYield"),{rows:i=>({head:fmtDateY(D[i].date),
+    lines:yser.map(s=>({k:s.label,v:fmt(s.v[i],0)+" g",color:s.color}))})});
+  $("legYield").innerHTML=yser.map(s=>`<span><i class="dot" style="background:${s.color}"></i>${s.label}</span>`).join("");
+  const last=D[D.length-1],tot=(last.crops.cuke.yieldG*cfg.nCuke+last.crops.pea.yieldG*cfg.nPea);
+  $("yieldNote").textContent=tot<5
+    ? `This run finishes with essentially nothing picked. Work down the alerts above — light, root room and pollination are usually what decides it.`
+    : `Over the whole run: ${Math.round(last.crops.cuke.yieldG*cfg.nCuke)} g of cucumber from ${cfg.nCuke} plant${cfg.nCuke===1?"":"s"} and ${Math.round(last.crops.pea.yieldG*cfg.nPea)} g of peas from ${cfg.nPea}. For scale, one supermarket cucumber is about 200 g.`;
+
+  lineChart($("chWater"),{x:D,series:[{label:"Available water",color:cW,v:D.map(d=>d.aw*100),area:true}],
+    xticks:xt,marker:day,ymax:100,yfmt:v=>fmt(v,0)+"%",padLeft:36});
+  attachHover($("chWater"),{rows:i=>({head:fmtDateY(D[i].date),lines:[
+    {k:"available",v:Math.round(D[i].aw*100)+"%"},{k:"used",v:Math.round(D[i].etcML)+" ml"},
+    {k:"watered",v:D[i].appliedML?Math.round(D[i].appliedML)+" ml":"no"}]})});
+
+  lineChart($("chN"),{x:D,series:[{label:"N met",color:cssVar("--accent"),v:D.map(d=>d.supplyRatio*100),area:true}],
+    xticks:xt,marker:day,ymax:100,yfmt:v=>fmt(v,0)+"%",padLeft:36});
+  attachHover($("chN"),{rows:i=>({head:fmtDateY(D[i].date),lines:[
+    {k:"demand met",v:Math.round(D[i].supplyRatio*100)+"%"},{k:"mineral N",v:Math.round(D[i].mineralN)+" mg"},
+    {k:"still locked up",v:Math.round(D[i].organicN/1000)+" g"}]})});
+
+  lineChart($("chTemp"),{x:D,series:[{label:"Mean",color:cI,v:D.map(d=>d.w.tmean)}],
+    band:{hi:D.map(d=>d.w.tmax),lo:D.map(d=>d.w.tmin),color:cI},
+    xticks:xt,marker:day,ymin:0,yfmt:v=>fmt(v,0)+"°",padLeft:34});
+  attachHover($("chTemp"),{rows:i=>({head:fmtDateY(D[i].date),lines:[
+    {k:"high",v:fmt(D[i].w.tmax,1)+"°"},{k:"low",v:fmt(D[i].w.tmin,1)+"°"},
+    {k:"humidity",v:Math.round(D[i].w.rh)+"%"},{k:"rain",v:D[i].w.rain?"yes":"no"}]})});
+}
+
+/* ---- observations & model error ---- */
+function renderObs(){
+  obs.sort((a,b)=>a.date<b.date?-1:1);
+  $("tblObs").innerHTML=obs.length?`<thead><tr><th>Date</th><th>Crop</th><th class="num">Yours</th><th class="num">Model</th><th class="num">Diff</th><th></th></tr></thead><tbody>`+
+    obs.map((o,i)=>{
+      const di=Math.round((parseISO(o.date)-parseISO(cfg.sown))/DAY);
+      const m=(di>=0&&di<=cfg.horizon)?sim.days[di].crops[o.crop].stemLen:null;
+      const diff=(m!=null&&o.len!=null)?(m-o.len):null;
+      return `<tr><td>${fmtDate(parseISO(o.date))}</td><td>${CROPS[o.crop].name}</td>
+        <td class="num">${o.len!=null?fmt(o.len,1)+" cm":"—"}${o.leaves!=null?` · ${o.leaves} lf`:""}</td>
+        <td class="num">${m!=null?fmt(m,1)+" cm":"—"}</td>
+        <td class="num" style="color:${diff==null?"inherit":Math.abs(diff)>Math.max(4,o.len*0.3)?"var(--crit)":"var(--ink-2)"}">${diff==null?"—":(diff>0?"+":"")+fmt(diff,1)}</td>
+        <td class="num"><button class="iconbtn" data-del="${i}" style="height:24px;padding:0 7px">✕</button></td></tr>`;
+    }).join("")+`</tbody>`
+    : `<tbody><tr><td style="color:var(--ink-3)">No readings yet. One measurement every three or four days is plenty.</td></tr></tbody>`;
+  $("tblObs").querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{obs.splice(+b.dataset.del,1);save();renderObs();renderCharts();});
+  const withBoth=obs.filter(o=>{const di=Math.round((parseISO(o.date)-parseISO(cfg.sown))/DAY);
+    return o.len!=null&&di>=0&&di<=cfg.horizon;});
+  if(withBoth.length>=2){
+    let ae=0,bias=0,denom=0;
+    withBoth.forEach(o=>{const di=Math.round((parseISO(o.date)-parseISO(cfg.sown))/DAY);
+      const m=sim.days[di].crops[o.crop].stemLen;ae+=Math.abs(m-o.len);bias+=(m-o.len);denom+=o.len;});
+    const mae=ae/withBoth.length, rel=denom>0?ae/denom*100:0, b=bias/withBoth.length;
+    $("fitBox").innerHTML=`<div class="alert"><div class="bar"></div><div class="body">
+      <div class="t">Model error over ${withBoth.length} readings<em>fit</em></div>
+      <p>Average miss <b>${fmt(mae,1)} cm</b> (${fmt(rel,0)}% of what you measured), and it runs
+      <b>${b>0?fmt(b,1)+" cm high":fmt(-b,1)+" cm low"}</b> on average.
+      ${Math.abs(b)>mae*0.6?`A consistent bias usually means one input is off — most often the light setting or the sowing date.`:`No consistent bias, so the misses are scatter rather than a wrong assumption.`}</p>
+    </div></div>`;
+  } else $("fitBox").innerHTML="";
+}
+
+/* ---- methods ---- */
+$("methods").innerHTML=`
+<p>This is not an animation on a timer. Each day is computed from the one before it, and nothing is drawn that the model did not derive.</p>
+<h3>The daily loop</h3>
+<ul>
+<li><b>Weather</b> — IMD monthly normals for your city, smoothed between month centres, plus day-to-day variation from a seeded generator, so the same settings always give the same season.</li>
+<li><b>Light and evaporation</b> — extraterrestrial radiation from your latitude and the date (FAO-56), solar radiation from the day's temperature range (Hargreaves), reference ET the same way. Light reaching the tub is cut by where it stands: an open terrace keeps about 92% of the sky, a half-day balcony 42%, a bright window 14%.</li>
+<li><b>Water</b> — the tub is a bucket with a known capacity. Rain and watering go in, evapotranspiration comes out, anything above capacity drains if there are holes and sits as standing water if there are not. Growth slows below 55% of available water.</li>
+<li><b>Nitrogen</b> — vermicompost is mostly locked up in organic matter. It mineralises at about 0.3% a day at 25 °C, doubling for every 10 °C, and slows in a dry or waterlogged mix. Peas cover most of their own nitrogen from root nodules after about three weeks.</li>
+<li><b>Carbon</b> — leaf area intercepts light by Beer's law (k = 0.85), and intercepted light becomes dry matter at about 0.78 g per mol for cucumber and 0.66 for pea. That dry matter is split between leaf, stem, root and fruit according to the stage. Stresses multiply, so they compound rather than add.</li>
+<li><b>Shape</b> — nodes are paid for in leaf: the plant adds a node once it has grown enough leaf to fill one, and early nodes carry smaller leaves than later ones. The internode between them stretches in poor light and shortens when the tub is dry, which is why a window-grown vine draws long and sparse while a terrace one draws stocky.</li>
+<li><b>Stages</b> — growing degree days from sowing, base 10 °C for cucumber and 4.4 °C for pea, with the daily high capped at the crop's cut-off.</li>
+<li><b>Fruit</b> — flowers appear at a rate set by the plant's vigour. Each has to be pollinated: peas pollinate themselves, cucumber needs an insect or your finger. Set fruit then competes for assimilate, and the youngest are dropped when there is not enough.</li>
+</ul>
+<h3>Where it will be wrong</h3>
+<ul>
+<li>It uses climate normals, not your actual weather. A real cold snap or an unseasonal week will move the dates.</li>
+<li>Variety matters more than the model admits. A parthenocarpic greenhouse cucumber sets fruit with no pollination at all; a tall pea runs to 1.8 m where a dwarf stops at 45 cm.</li>
+<li>Root restriction is a single empirical term. Real root-bound plants fail in ways that depend on how often you water.</li>
+<li>Pests appear from a weather-driven risk score. Whether they actually find your balcony is luck.</li>
+<li>Transplant shock, damping-off, a cat, and the neighbour's pigeon are not modelled.</li>
+</ul>
+<p>The test that matters is the one on the left: measure the real vine, and see how far off this is.</p>`;
+
+/* ---- wiring ---- */
+load(); fillCitySelect(); cfgToForm();
+$("obsDate").value=todayISO;
+["cfgSown","cfgCity","cfgVol","cfgSite","cfgNCuke","cfgNPea","cfgVc","cfgDisc","cfgHoles","cfgSupport","cfgPollinate","cfgPests"]
+  .forEach(id=>$(id).addEventListener("change",()=>{formToCfg();save();rebuild(day);}));
+$("btnReset").onclick=()=>{cfg={...DEFAULTS};cfgToForm();save();rebuild(null);};
+$("scrub").addEventListener("input",()=>{day=+$("scrub").value;renderStage();renderReadouts();renderAlerts();renderPheno();renderCharts();});
+$("btnToday").onclick=()=>{day=todayIndex();$("scrub").value=String(day);renderAll();};
+$("btnPlay").onclick=()=>{
+  if(playing){clearInterval(playing);playing=null;$("btnPlay").textContent="▶ Play";$("btnPlay").setAttribute("aria-pressed","false");return;}
+  $("btnPlay").textContent="❚❚ Pause";$("btnPlay").setAttribute("aria-pressed","true");
+  playing=setInterval(()=>{day=day>=cfg.horizon?0:day+1;$("scrub").value=String(day);
+    renderStage();renderReadouts();renderAlerts();renderPheno();renderCharts();},110);
+};
+$("btnTheme").onclick=()=>{
+  const cur=document.documentElement.getAttribute("data-theme")||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");
+  document.documentElement.setAttribute("data-theme",cur==="dark"?"light":"dark");
+  try{localStorage.setItem(STORE+".theme",cur==="dark"?"light":"dark");}catch(e){}
+  renderAll();
+};
+try{const t=localStorage.getItem(STORE+".theme");if(t)document.documentElement.setAttribute("data-theme",t);}catch(e){}
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change",()=>{if(!document.documentElement.getAttribute("data-theme"))renderAll();});
+function setView(v){view=v;
+  $("tabBoth").setAttribute("aria-pressed",String(v==="both"));
+  $("tabCuke").setAttribute("aria-pressed",String(v==="cuke"));
+  $("tabPea").setAttribute("aria-pressed",String(v==="pea"));
+  renderStage();}
+$("tabBoth").onclick=()=>setView("both");$("tabCuke").onclick=()=>setView("cuke");$("tabPea").onclick=()=>setView("pea");
+$("btnObsAdd").onclick=()=>{
+  const d=$("obsDate").value,len=parseFloat($("obsLen").value),lf=parseInt($("obsLeaf").value,10);
+  if(!d||(!Number.isFinite(len)&&!Number.isFinite(lf)))return;
+  obs.push({date:d,crop:$("obsCrop").value,len:Number.isFinite(len)?len:null,leaves:Number.isFinite(lf)?lf:null});
+  $("obsLen").value="";$("obsLeaf").value="";save();renderObs();renderCharts();};
+$("btnObsClear").onclick=()=>{obs=[];save();renderObs();renderCharts();};
+addEventListener("keydown",e=>{
+  if(e.target.matches("input,select,textarea"))return;
+  if(e.key==="ArrowRight"){day=clamp(day+1,0,cfg.horizon);$("scrub").value=String(day);renderStage();renderReadouts();renderAlerts();renderPheno();}
+  if(e.key==="ArrowLeft"){day=clamp(day-1,0,cfg.horizon);$("scrub").value=String(day);renderStage();renderReadouts();renderAlerts();renderPheno();}
+});
+rebuild(null);
+</script>
